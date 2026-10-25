@@ -8,5 +8,6 @@
       "includeFiles": "{backend/app/**,data/snapshot.duckdb}",
       "excludeFiles": "{.env*,.vercel/**,.claude/**,.scratch/**,.github/**,docs/**,frontend/**,backend/tests/**,backend/.venv/**}"
     }
-  }
+  },
+  "framework": "vite"
 }
