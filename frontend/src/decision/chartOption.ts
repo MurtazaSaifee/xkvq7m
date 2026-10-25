@@ -4,9 +4,9 @@ import type {
   TooltipComponentFormatterCallbackParams as TopLevelFormatterParams,
 } from "echarts";
 
-import type { DecisionHour, DecisionSnapshot } from "../api/client";
+import type { DecisionHour, DecisionSnapshot, HalfHourActual } from "../api/client";
 import { formatMw, formatMwRange, formatUkTime } from "../format";
-import { actualPoints, bandAreas, forecastSteps, hourOfStep, type Point } from "./series";
+import { actualPoints, bandAreas, forecastSteps, type Point } from "./series";
 
 export const CHART_COLORS = {
   forecast: "#2F6690",
@@ -17,6 +17,9 @@ export const CHART_COLORS = {
 } as const;
 
 const FORECAST_SERIES = "Decision forecast";
+const ACTUAL_SERIES = "Actual";
+const HOUR_MS = 60 * 60 * 1000;
+const HALF_HOUR_MS = HOUR_MS / 2;
 
 const ukTimeOf = (epochMs: number) => formatUkTime(new Date(epochMs).toISOString());
 
@@ -25,36 +28,63 @@ function describeValue(value: number | null | undefined): string {
 }
 
 /**
- * The expected-error range of the hour the hovered forecast belongs to, if it has one. The item's
- * data index is its forecast step, so the range is the one for the forecast value shown, even when
- * the cursor sits on an hour edge.
+ * A hovered item as ECharts passes it on an axis tooltip. ECharts sets axisValue at run time, but
+ * its public types leave the field out.
  */
-function bandRows(items: CallbackDataParams[], hours: DecisionHour[]): string[] {
-  const forecast = items.find((item) => item.seriesName === FORECAST_SERIES);
-  if (forecast === undefined) {
-    return [];
-  }
-  const hour = hours[hourOfStep(forecast.dataIndex)];
-  if (hour === undefined || hour.band_low_mw === null || hour.band_high_mw === null) {
-    return [];
-  }
-  return [`Expected range: ${formatMwRange(hour.band_low_mw, hour.band_high_mw)}`];
+type AxisItem = CallbackDataParams & { axisValue?: string | number };
+
+/** The hovered time in epoch ms: the axis value, which a time axis gives as a number. */
+function hoveredTime(first: AxisItem): number {
+  return typeof first.axisValue === "number" ? first.axisValue : (first.value as Point)[0];
 }
 
-/** One line per series at the hovered time, in legend order, then the hour's expected range. */
-function tooltipFormatter(hours: DecisionHour[]) {
+/** The hour whose span holds the instant: it starts at or before the instant and ends after it. */
+function hourAt(hours: DecisionHour[], x: number): DecisionHour | undefined {
+  return hours.find((hour) => {
+    const start = Date.parse(hour.target_time);
+    return start <= x && x < start + HOUR_MS;
+  });
+}
+
+/** The actual at the start of the half-hour that holds the instant, if the snapshot has one. */
+function actualAt(actuals: HalfHourActual[], x: number): HalfHourActual | undefined {
+  const halfHourStart = Math.floor(x / HALF_HOUR_MS) * HALF_HOUR_MS;
+  return actuals.find((actual) => Date.parse(actual.target_time) === halfHourStart);
+}
+
+const MARKER_STYLE =
+  "display:inline-block;margin-right:5px;border-radius:10px;width:10px;height:10px;";
+
+/** One tooltip row, with a marker in the series colour. */
+function row(color: string, label: string, value: string): string {
+  return `<span style="${MARKER_STYLE}background-color:${color};"></span>${label}: ${value}`;
+}
+
+/**
+ * The rows describe the hour holding the hovered time, and the half-hour actual at it, both read
+ * from the snapshot by time. ECharts' own items are not used: an hour edge gives two forecast steps
+ * and a half-hour gives none. A row is left out when the snapshot has nothing for it.
+ */
+function tooltipFormatter(snapshot: DecisionSnapshot) {
   return (params: TopLevelFormatterParams): string => {
-    const items: CallbackDataParams[] = Array.isArray(params) ? params : [params];
-    const first = items[0];
+    const first = (Array.isArray(params) ? params[0] : params) as AxisItem | undefined;
     if (!first) {
       return "";
     }
-    const x = (first.value as Point)[0];
-    const rows = items.map((item) => {
-      const value = (item.value as Point)[1];
-      return `${item.marker ?? ""} ${item.seriesName}: ${describeValue(value)}`;
-    });
-    return [`<strong>${ukTimeOf(x)} UK</strong>`, ...rows, ...bandRows(items, hours)].join("<br/>");
+    const x = hoveredTime(first);
+    const hour = hourAt(snapshot.hours, x);
+    const actual = actualAt(snapshot.actuals, x);
+    const rows: string[] = [];
+    if (hour !== undefined) {
+      rows.push(row(CHART_COLORS.forecast, FORECAST_SERIES, describeValue(hour.forecast_mw)));
+    }
+    if (hour !== undefined || actual !== undefined) {
+      rows.push(row(CHART_COLORS.actual, ACTUAL_SERIES, describeValue(actual?.generation_mw)));
+    }
+    if (hour !== undefined && hour.band_low_mw !== null && hour.band_high_mw !== null) {
+      rows.push(`Expected range: ${formatMwRange(hour.band_low_mw, hour.band_high_mw)}`);
+    }
+    return [`<strong>${ukTimeOf(x)} UK</strong>`, ...rows].join("<br/>");
   };
 }
 
@@ -69,7 +99,7 @@ export function buildChartOption(snapshot: DecisionSnapshot, reduceMotion: boole
     // at UTC+05:30 would see ticks at 02:30 and 06:30. The labels are UK time from ukTimeOf.
     useUTC: true,
     grid: { left: 64, right: 24, top: 24, bottom: 84 },
-    tooltip: { trigger: "axis", formatter: tooltipFormatter(snapshot.hours) },
+    tooltip: { trigger: "axis", formatter: tooltipFormatter(snapshot) },
     xAxis: {
       type: "time",
       axisLine: { lineStyle: { color: CHART_COLORS.rule } },
@@ -121,7 +151,7 @@ export function buildChartOption(snapshot: DecisionSnapshot, reduceMotion: boole
         z: 2,
       },
       {
-        name: "Actual",
+        name: ACTUAL_SERIES,
         type: "line",
         data: actualPoints(snapshot.actuals),
         showSymbol: false,
