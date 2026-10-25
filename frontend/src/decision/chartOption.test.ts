@@ -116,3 +116,67 @@ describe("buildChartOption", () => {
     expect(option.useUTC).toBe(true);
   });
 });
+
+/** The fields of an ECharts axis-tooltip item that the formatter reads. */
+type TooltipItem = {
+  seriesName: string;
+  dataIndex: number;
+  value: [number, number | null];
+  marker: string;
+};
+
+/** The tooltip text the built option gives for the hovered items. */
+function tooltipText(snapshot: DecisionSnapshot, items: TooltipItem[]): string {
+  const option = buildChartOption(snapshot, true) as unknown as {
+    tooltip: { formatter: (items: TooltipItem[]) => string };
+  };
+  return option.tooltip.formatter(items);
+}
+
+describe("the hover tooltip", () => {
+  const HOUR_21 = Date.parse("2026-01-05T21:00:00Z");
+  const HOUR_22 = Date.parse("2026-01-05T22:00:00Z");
+
+  it("reads the decision forecast and the actual in MW, not MWh", () => {
+    const text = tooltipText(SNAPSHOT, [
+      {
+        seriesName: "Decision forecast",
+        dataIndex: 0,
+        value: [HOUR_21, 15500],
+        marker: "",
+      },
+      { seriesName: "Actual", dataIndex: 0, value: [HOUR_21, 15000], marker: "" },
+    ]);
+
+    expect(text).toContain("Decision forecast: 15,500 MW");
+    expect(text).toContain("Actual: 15,000 MW");
+    expect(text).not.toContain("MWh");
+  });
+
+  it("gives the expected range of the hour, low to high", () => {
+    const text = tooltipText(SNAPSHOT, [
+      { seriesName: "Decision forecast", dataIndex: 0, value: [HOUR_21, 15500], marker: "" },
+    ]);
+
+    expect(text).toContain("Expected range: 15,000–15,800 MW");
+  });
+
+  it("takes the range of the hour the forecast value comes from, at an hour boundary", () => {
+    // Point 1 is the end of the 21:00 step, so it carries the 21:00 forecast and its band.
+    const text = tooltipText(SNAPSHOT, [
+      { seriesName: "Decision forecast", dataIndex: 1, value: [HOUR_22, 15500], marker: "" },
+    ]);
+
+    expect(text).toContain("Expected range: 15,000–15,800 MW");
+  });
+
+  it("leaves out the range when the hour has none, and says the forecast has no value", () => {
+    // Point 2 starts the 22:00 hour, which has no decision forecast and so no band.
+    const text = tooltipText(SNAPSHOT, [
+      { seriesName: "Decision forecast", dataIndex: 2, value: [HOUR_22, null], marker: "" },
+    ]);
+
+    expect(text).toContain("Decision forecast: no value");
+    expect(text).not.toContain("Expected range");
+  });
+});

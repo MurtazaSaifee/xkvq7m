@@ -4,6 +4,7 @@ import {
   formatCount,
   formatDayRange,
   formatMw,
+  formatMwRange,
   formatMwh,
   formatPercent,
   formatSignedMw,
@@ -16,6 +17,10 @@ import {
 describe("megawatt formatting", () => {
   it("rounds MW to whole megawatts with a thousands separator", () => {
     expect(formatMw(11283.56)).toBe("11,284 MW");
+  });
+
+  it("states a range of MW low to high, with the unit once", () => {
+    expect(formatMwRange(11100.4, 16800)).toBe("11,100–16,800 MW");
   });
 
   it("formats a whole count with a thousands separator", () => {

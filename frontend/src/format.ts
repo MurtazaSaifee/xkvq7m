@@ -56,6 +56,11 @@ export function formatMw(value: number): string {
   return `${numberFormat.format(Math.round(value))} MW`;
 }
 
+/** A range of MW, low to high, with the unit once: "11,100–16,800 MW". */
+export function formatMwRange(low: number, high: number): string {
+  return `${numberFormat.format(Math.round(low))}–${formatMw(high)}`;
+}
+
 /** A signed whole number: "+500", "−500" or "0". Used for error values, which are signed. */
 export function formatSignedNumber(value: number): string {
   const rounded = Math.round(value);
