@@ -84,7 +84,10 @@ def _api(path: Path, monkeypatch: pytest.MonkeyPatch) -> httpx.AsyncClient:
 
 @pytest.fixture
 def band_api(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> httpx.AsyncClient:
-    """Forecasts and actuals from the December warm-up, so every scope day has a full band."""
+    """Forecasts and actuals from 19 Dec, the first day the snapshot holds.
+
+    Every scope day has a band. 2 Jan reads 19 to 31 Dec, which is 13 days, because 18 Dec has no data.
+    """
     return _api(_write_band_snapshot(tmp_path / "band.duckdb", WARM_UP_FIRST), monkeypatch)
 
 
@@ -106,8 +109,9 @@ async def test_the_decision_snapshot_carries_the_band_for_its_delivery_day(
 ):
     body = await _get(band_api, "/api/v1/decision-snapshot", delivery_day="2026-01-02")
 
-    # The 14 past days all have zero error at 09:20, so the band is flat at zero.
-    assert body["band"] == {"lower_error_mw": 0.0, "upper_error_mw": 0.0, "history_days": 14}
+    # The 13 past days in the snapshot (19 to 31 Dec) all have zero error at 09:20, so the band is
+    # flat at zero.
+    assert body["band"] == {"lower_error_mw": 0.0, "upper_error_mw": 0.0, "history_days": 13}
     first_hour = body["hours"][0]
     assert first_hour["forecast_mw"] == 10000.0
     assert first_hour["band_low_mw"] == 10000.0
@@ -157,15 +161,16 @@ async def test_accuracy_reports_band_coverage_over_every_scope_day(band_api: htt
     assert coverage["excluded_no_actual"] == 0
 
 
-async def test_without_the_warm_up_the_first_seven_days_have_no_band_and_are_not_counted(
+async def test_without_the_warm_up_the_first_eight_days_have_no_band_and_are_not_counted(
     no_warm_up_api: httpx.AsyncClient,
 ):
     body = await _get(no_warm_up_api, "/api/v1/accuracy")
 
-    # 2 to 8 Jan each have fewer than seven past days, so they have no band: 7 days, 168 hours.
+    # 2 to 9 Jan each have fewer than seven past days, so they have no band: 8 days, 192 hours.
+    # The lookback ends two days before, so 10 Jan is the first day with seven.
     coverage = body["band_coverage"]
-    assert coverage["excluded_no_band"] == 7 * 24
-    assert coverage["counted_hours"] == (31 - 7) * 24
-    assert coverage["inside_hours"] == (31 - 7) * 24 - 24
-    counted = (31 - 7) * 24
+    assert coverage["excluded_no_band"] == 8 * 24
+    assert coverage["counted_hours"] == (31 - 8) * 24
+    assert coverage["inside_hours"] == (31 - 8) * 24 - 24
+    counted = (31 - 8) * 24
     assert coverage["coverage_percent"] == pytest.approx((counted - 24) / counted * 100)

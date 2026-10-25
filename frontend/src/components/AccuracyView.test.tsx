@@ -142,7 +142,7 @@ describe("AccuracyView", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Each day's band is the P10 to P90 of the forecast errors over the 14 delivery days before it, at this cutoff. It uses no later day.",
+        "Each day's band is the P10 to P90 of the forecast errors over the 14 delivery days that end two days before it, at this cutoff. It uses no error from the day before it or any later day.",
       ),
     ).toBeInTheDocument();
   });

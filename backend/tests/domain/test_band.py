@@ -6,6 +6,7 @@ here, not taken from the code under test.
 """
 
 from collections.abc import Mapping, Sequence
+from dataclasses import replace
 from datetime import date, datetime, time, timedelta
 
 import pytest
@@ -23,8 +24,8 @@ from app.domain.decision import DecisionForecast, HalfHourActual
 
 CUTOFF = time(9, 20)
 DAY = date(2026, 1, 2)
-# The fourteen delivery days before 2 Jan: 19 Dec 2025 to 1 Jan 2026, the December warm-up.
-LOOKBACK = [date(2025, 12, 19) + timedelta(days=offset) for offset in range(14)]
+# The fourteen delivery days that end two days before 2 Jan: 18 Dec 2025 to 31 Dec.
+LOOKBACK = [date(2025, 12, 18) + timedelta(days=offset) for offset in range(14)]
 FORECAST_MW = 10000.0
 
 
@@ -78,31 +79,34 @@ def test_the_band_for_an_actual_is_forecast_minus_p90_to_forecast_minus_p10():
     assert band.actual_range_mw(10000) == pytest.approx((9460, 9940))
 
 
-def test_the_band_reads_the_fourteen_delivery_days_before_the_day():
+def test_the_band_reads_the_fourteen_delivery_days_that_end_two_days_before_the_day():
     assert BAND_LOOKBACK_DAYS == 14
     assert lookback_days(DAY) == LOOKBACK
+    assert lookback_days(DAY)[-1] == DAY - timedelta(days=2)
 
 
-def test_changing_the_day_itself_or_any_later_day_does_not_move_the_band():
+def test_changing_the_day_before_the_day_itself_or_any_later_day_does_not_move_the_band():
     past = _seven_past_days()
-    later = {DAY + timedelta(days=offset): [1_000_000.0] for offset in range(31)}
+    later = {DAY + timedelta(days=offset): [1_000_000.0] for offset in range(-1, 31)}
 
     assert expected_error_band(DAY, {**past, **later}) == expected_error_band(DAY, past)
 
 
-def test_the_last_past_day_and_the_first_lookback_day_both_move_the_band():
-    # 1 Jan is the day before 2 Jan. 19 Dec is the first day of the window.
+def test_the_two_end_days_of_the_lookback_move_the_band_and_the_day_before_does_not():
+    # 31 Dec is two days before 2 Jan, the newest day read. 18 Dec is the oldest.
     past = {LOOKBACK[7 + index]: [100.0 * index] for index in range(7)}
     last_changed = {**past, LOOKBACK[13]: [0.0]}
     first = _seven_past_days()
     first_changed = {**first, LOOKBACK[0]: [5000.0]}
+    day_before_changed = {**past, DAY - timedelta(days=1): [5000.0]}
 
     assert expected_error_band(DAY, last_changed) != expected_error_band(DAY, past)
     assert expected_error_band(DAY, first_changed) != expected_error_band(DAY, first)
+    assert expected_error_band(DAY, day_before_changed) == expected_error_band(DAY, past)
 
 
 def test_errors_older_than_the_lookback_window_do_not_move_the_band():
-    # 18 Dec is fifteen delivery days before 2 Jan, outside the fourteen-day window.
+    # 17 Dec is sixteen days before 2 Jan, just outside the window that starts on 18 Dec.
     older = {LOOKBACK[0] - timedelta(days=1): [9000.0]}
 
     assert expected_error_band(DAY, {**_seven_past_days(), **older}) == expected_error_band(
@@ -141,7 +145,7 @@ def test_the_percentiles_pool_every_hourly_error_of_the_past_days():
 
 
 def test_fewer_than_fourteen_past_days_use_the_days_available():
-    # A snapshot that starts on 26 Dec has seven of the fourteen past days for 2 Jan.
+    # A snapshot that starts on 25 Dec has seven of the fourteen past days for 2 Jan.
     inputs = [_inputs_with_error(day, 100.0 * index) for index, day in enumerate(LOOKBACK[7:])]
     forecasts, actuals = _flatten(inputs)
     band = band_for_day(DAY, CUTOFF, forecasts, actuals)
@@ -180,16 +184,38 @@ def test_the_band_uses_only_forecasts_published_by_the_cutoff():
     assert (at_0930.lower_error_mw, at_0930.upper_error_mw) == pytest.approx((2000, 2000))
 
 
-def test_the_band_from_inputs_ignores_the_day_itself_and_every_later_day():
+@pytest.mark.parametrize("day_offset", [-1, 0, 1, 10])
+@pytest.mark.parametrize("field", ["actual", "forecast"])
+def test_changing_an_actual_or_forecast_on_the_day_before_or_later_does_not_move_the_band(
+    field: str, day_offset: int
+):
+    target = DAY + timedelta(days=day_offset)
     past = _flatten(
         [_inputs_with_error(day, 100.0 * index) for index, day in enumerate(LOOKBACK[:7])]
     )
-    later = _flatten(
-        [_inputs_with_error(DAY + timedelta(days=offset), 5000.0) for offset in range(31)]
+    recent = _flatten(
+        [_inputs_with_error(DAY + timedelta(days=offset), 5000.0) for offset in (-1, 0, 1, 10)]
     )
-    with_later = _flatten([past, later])
+    forecasts, actuals = _flatten([past, recent])
+    band = band_for_day(DAY, CUTOFF, forecasts, actuals)
+    assert band is not None
 
-    assert band_for_day(DAY, CUTOFF, *with_later) == band_for_day(DAY, CUTOFF, *past)
+    if field == "forecast":
+        forecasts = [
+            replace(f, generation_mw=f.generation_mw + 7000.0)
+            if f.target_time.date() == target
+            else f
+            for f in forecasts
+        ]
+    else:
+        actuals = [
+            replace(a, generation_mw=(a.generation_mw or 0.0) + 7000.0)
+            if a.target_time.date() == target
+            else a
+            for a in actuals
+        ]
+
+    assert band_for_day(DAY, CUTOFF, forecasts, actuals) == band
 
 
 def test_an_hour_with_no_decision_forecast_has_no_band_range():
