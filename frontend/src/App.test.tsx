@@ -23,6 +23,8 @@ const ACCURACY = {
     nmae_percent: 18.07,
   },
   histogram: { bin_width_mw: 500, bins: [] },
+  heatmap: { cells: [] },
+  worst_days: [],
 };
 
 const META = {
@@ -173,6 +175,72 @@ describe("App", () => {
     expect(await screen.findByRole("group", { name: "Average miss (MAE)" })).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/accuracy?cutoff=14%3A30", expect.anything());
     expect(new URLSearchParams(window.location.search).get("cutoff")).toBe("14:30");
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("opens the Decision view on a worst day when its row is followed from the Accuracy view", async () => {
+    window.history.replaceState(null, "", "/?view=accuracy&cutoff=14:30");
+    const accuracyWithWorstDay = {
+      ...ACCURACY,
+      cutoff: "14:30",
+      worst_days: [
+        {
+          delivery_day: "2026-01-15",
+          error_mwh: -7200,
+          forecast_mwh: 237600,
+          actual_mwh: 244800,
+          paired_hours: 24,
+        },
+      ],
+    };
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = new URL(String(input), "http://localhost");
+      if (url.pathname === "/api/v1/accuracy") {
+        return Promise.resolve(jsonResponse(accuracyWithWorstDay));
+      }
+      if (url.pathname === "/api/v1/decision-snapshot") {
+        return Promise.resolve(
+          jsonResponse({
+            delivery_day: url.searchParams.get("delivery_day"),
+            decision_day: "2026-01-14",
+            cutoff: "14:30",
+            cutoff_time: "2026-01-14T14:30:00Z",
+            forecast_run_publish_time: "2026-01-14T13:00:00Z",
+            hours: [],
+            actuals: [],
+            kpis: {
+              forecast_mwh: 237600,
+              actual_mwh: 244800,
+              error_mwh: -7200,
+              paired_hours: 24,
+              missing_forecast_hours: 0,
+              missing_actual_hours: 0,
+            },
+          }),
+        );
+      }
+      if (url.pathname === "/api/v1/meta") {
+        return metaOk();
+      }
+      return healthy();
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderApp();
+
+    fireEvent.click(await screen.findByRole("link", { name: "15 Jan" }));
+
+    expect(
+      await screen.findByRole("heading", { name: /Wind outlook for 15 Jan/ }),
+    ).toBeInTheDocument();
+    const params = new URLSearchParams(window.location.search);
+    expect(params.get("view")).toBeNull();
+    expect(params.get("day")).toBe("2026-01-15");
+    expect(params.get("cutoff")).toBe("14:30");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/decision-snapshot?delivery_day=2026-01-15&cutoff=14%3A30",
+      expect.anything(),
+    );
     window.history.replaceState(null, "", "/");
   });
 });
