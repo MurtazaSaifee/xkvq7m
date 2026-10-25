@@ -81,6 +81,16 @@ export function formatPercent(value: number): string {
   return `${percentFormat.format(value)}%`;
 }
 
+/** A difference between two percentages, in points to one decimal place: "+0.3 pp" or "−0.2 pp". */
+export function formatSignedPercentPoints(value: number): string {
+  const tenths = Math.round(value * 10) / 10;
+  if (tenths === 0) {
+    return `${percentFormat.format(0)} pp`;
+  }
+  const sign = tenths > 0 ? "+" : "−";
+  return `${sign}${percentFormat.format(Math.abs(tenths))} pp`;
+}
+
 export interface OutlookFacts {
   deliveryDay: string;
   decisionDay: string;

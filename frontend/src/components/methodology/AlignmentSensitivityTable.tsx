@@ -1,5 +1,12 @@
 import type { AlignmentSensitivity } from "../../api/client";
-import { formatCount, formatMw, formatSignedMw, formatSignedNumber } from "../../format";
+import {
+  formatCount,
+  formatMw,
+  formatPercent,
+  formatSignedMw,
+  formatSignedNumber,
+  formatSignedPercentPoints,
+} from "../../format";
 
 const EM_DASH = "—";
 
@@ -13,6 +20,7 @@ interface Row {
 
 const COUNT = { show: formatCount, change: formatSignedNumber };
 const MW = { show: formatMw, change: formatSignedMw };
+const PERCENT = { show: formatPercent, change: formatSignedPercentPoints };
 
 function cell(value: number | null, show: (value: number) => string): string {
   return value === null ? EM_DASH : show(value);
@@ -40,6 +48,8 @@ export function AlignmentSensitivityTable({
     { label: "MAE", hourly: hourly.mae_mw, top: top.mae_mw, ...MW },
     { label: "Bias", hourly: hourly.bias_mw, top: top.bias_mw, ...MW },
     { label: "RMSE", hourly: hourly.rmse_mw, top: top.rmse_mw, ...MW },
+    { label: "P90", hourly: hourly.p90_abs_error_mw, top: top.p90_abs_error_mw, ...MW },
+    { label: "nMAE", hourly: hourly.nmae_percent, top: top.nmae_percent, ...PERCENT },
   ];
 
   return (

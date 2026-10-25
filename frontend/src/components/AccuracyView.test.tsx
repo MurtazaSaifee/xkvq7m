@@ -61,8 +61,22 @@ const ACCURACY: AccuracyResponse = {
     decision_horizon_range_hours: { min_hours: 1.5, max_hours: 2.5 },
   },
   alignment_sensitivity: {
-    hourly_mean: { measured_hours: 742, mae_mw: 2038.9, bias_mw: 1747.9, rmse_mw: 2504.8 },
-    top_of_hour: { measured_hours: 742, mae_mw: 2022.5, bias_mw: 1745.9, rmse_mw: 2497.4 },
+    hourly_mean: {
+      measured_hours: 742,
+      mae_mw: 2038.9,
+      bias_mw: 1747.9,
+      rmse_mw: 2504.8,
+      p90_abs_error_mw: 4097.9,
+      nmae_percent: 18.07,
+    },
+    top_of_hour: {
+      measured_hours: 742,
+      mae_mw: 2022.5,
+      bias_mw: 1745.9,
+      rmse_mw: 2497.4,
+      p90_abs_error_mw: 4150,
+      nmae_percent: 17.9,
+    },
   },
 };
 

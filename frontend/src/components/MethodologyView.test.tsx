@@ -41,8 +41,22 @@ const ACCURACY: AccuracyResponse = {
     decision_horizon_range_hours: { min_hours: 16.5, max_hours: 39.5 },
   },
   alignment_sensitivity: {
-    hourly_mean: { measured_hours: 742, mae_mw: 2038.9, bias_mw: 1747.9, rmse_mw: 2504.8 },
-    top_of_hour: { measured_hours: 742, mae_mw: 2022.5, bias_mw: 1745.9, rmse_mw: 2497.4 },
+    hourly_mean: {
+      measured_hours: 742,
+      mae_mw: 2038.9,
+      bias_mw: 1747.9,
+      rmse_mw: 2504.8,
+      p90_abs_error_mw: 4097.9,
+      nmae_percent: 18.07,
+    },
+    top_of_hour: {
+      measured_hours: 742,
+      mae_mw: 2022.5,
+      bias_mw: 1745.9,
+      rmse_mw: 2497.4,
+      p90_abs_error_mw: 4150,
+      nmae_percent: 17.9,
+    },
   },
 };
 
@@ -196,6 +210,22 @@ describe("MethodologyView", () => {
     expect(within(mae).getByText("−16 MW")).toBeVisible();
     const measured = within(table).getByRole("row", { name: /^Measured hours/ });
     expect(within(measured).getAllByText("742")).toHaveLength(2);
+  });
+
+  it("reports the P90 and nMAE under both alignment rules, with the difference", async () => {
+    stubApi(() => jsonResponse(ACCURACY));
+
+    renderView();
+
+    const table = await screen.findByRole("table", { name: "Alignment sensitivity" });
+    const p90 = within(table).getByRole("row", { name: /^P90/ });
+    expect(within(p90).getByText("4,098 MW")).toBeVisible();
+    expect(within(p90).getByText("4,150 MW")).toBeVisible();
+    expect(within(p90).getByText("+52 MW")).toBeVisible();
+    const nmae = within(table).getByRole("row", { name: /^nMAE/ });
+    expect(within(nmae).getByText("18.1%")).toBeVisible();
+    expect(within(nmae).getByText("17.9%")).toBeVisible();
+    expect(within(nmae).getByText("−0.2 pp")).toBeVisible();
   });
 
   it("reports how many forecasts the snapshot excluded for publishing after their target", async () => {

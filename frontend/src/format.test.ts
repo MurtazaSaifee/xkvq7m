@@ -7,6 +7,7 @@ import {
   formatMwh,
   formatPercent,
   formatSignedMw,
+  formatSignedPercentPoints,
   formatSignedMwh,
   formatUkTime,
   outlookSentence,
@@ -30,6 +31,12 @@ describe("megawatt formatting", () => {
   it("shows a percentage to one decimal place", () => {
     expect(formatPercent(18.0697)).toBe("18.1%");
     expect(formatPercent(3.5)).toBe("3.5%");
+  });
+
+  it("signs a difference between two percentages in points, with zero unsigned", () => {
+    expect(formatSignedPercentPoints(0.3)).toBe("+0.3 pp");
+    expect(formatSignedPercentPoints(-0.17)).toBe("−0.2 pp");
+    expect(formatSignedPercentPoints(0.02)).toBe("0.0 pp");
   });
 });
 
