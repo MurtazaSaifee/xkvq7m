@@ -59,6 +59,8 @@ export function AccuracyView({ onOpenDecision }: { onOpenDecision: (day: string)
 
       <BandCoveragePanel coverage={data.band_coverage} />
 
+      <HorizonCurve curve={data.horizon_curve} cutoff={data.cutoff} />
+
       <ErrorHistogram
         histogram={data.histogram}
         cutoff={data.cutoff}
@@ -72,8 +74,6 @@ export function AccuracyView({ onOpenDecision }: { onOpenDecision: (day: string)
       />
 
       <WorstDaysPanel worstDays={data.worst_days} onOpenDay={onOpenDecision} />
-
-      <HorizonCurve curve={data.horizon_curve} cutoff={data.cutoff} />
     </section>
   );
 }

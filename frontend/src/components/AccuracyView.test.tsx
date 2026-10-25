@@ -60,6 +60,10 @@ const ACCURACY: AccuracyResponse = {
     excluded_no_actual: 2,
     decision_horizon_range_hours: { min_hours: 1.5, max_hours: 2.5 },
   },
+  alignment_sensitivity: {
+    hourly_mean: { measured_hours: 742, mae_mw: 2038.9, bias_mw: 1747.9, rmse_mw: 2504.8 },
+    top_of_hour: { measured_hours: 742, mae_mw: 2022.5, bias_mw: 1745.9, rmse_mw: 2497.4 },
+  },
 };
 
 function chartLabelled(prefix: string) {
@@ -344,5 +348,40 @@ describe("AccuracyView", () => {
     fireEvent.click(await screen.findByRole("link", { name: "2 Jan" }));
 
     expect(onOpenDecision).toHaveBeenCalledWith("2026-01-02");
+  });
+
+  it("leads with what matters: headline, band coverage, horizon, histogram, heatmap, worst days", async () => {
+    stubAccuracy(() =>
+      jsonResponse({
+        ...ACCURACY,
+        heatmap: { cells: [{ delivery_day: "2026-01-02", hour: 0, error_mw: 900 }] },
+        worst_days: [
+          {
+            delivery_day: "2026-01-02",
+            error_mwh: 1300,
+            forecast_mwh: 93500,
+            actual_mwh: 92200,
+            paired_hours: 6,
+          },
+        ],
+      }),
+    );
+
+    renderView();
+
+    await screen.findByRole("group", { name: "Average miss (MAE)" });
+    const panels = [
+      screen.getByRole("group", { name: "Average miss (MAE)" }),
+      screen.getByRole("group", { name: "Band coverage" }),
+      screen.getByRole("heading", { name: "Error by forecast horizon" }),
+      screen.getByRole("heading", { name: "Forecast error distribution" }),
+      screen.getByRole("heading", { name: "Error by hour and delivery day" }),
+      screen.getByRole("heading", { name: "Worst delivery days" }),
+    ];
+    for (let index = 1; index < panels.length; index += 1) {
+      const earlier = panels[index - 1];
+      const later = panels[index];
+      expect(earlier.compareDocumentPosition(later) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
   });
 });
