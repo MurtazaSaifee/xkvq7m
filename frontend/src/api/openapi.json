@@ -372,6 +372,9 @@
           },
           "histogram": {
             "$ref": "#/components/schemas/ErrorHistogramResponse"
+          },
+          "band_coverage": {
+            "$ref": "#/components/schemas/BandCoverageResponse"
           }
         },
         "type": "object",
@@ -379,7 +382,8 @@
           "cutoff",
           "delivery_days",
           "summary",
-          "histogram"
+          "histogram",
+          "band_coverage"
         ],
         "title": "AccuracyResponse"
       },
@@ -510,6 +514,62 @@
         ],
         "title": "ActualResponse"
       },
+      "BandCoverageResponse": {
+        "properties": {
+          "lookback_days": {
+            "type": "integer",
+            "title": "Lookback Days"
+          },
+          "min_history_days": {
+            "type": "integer",
+            "title": "Min History Days"
+          },
+          "counted_hours": {
+            "type": "integer",
+            "title": "Counted Hours"
+          },
+          "inside_hours": {
+            "type": "integer",
+            "title": "Inside Hours"
+          },
+          "coverage_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coverage Percent"
+          },
+          "excluded_no_band": {
+            "type": "integer",
+            "title": "Excluded No Band"
+          },
+          "excluded_no_decision_forecast": {
+            "type": "integer",
+            "title": "Excluded No Decision Forecast"
+          },
+          "excluded_no_actual": {
+            "type": "integer",
+            "title": "Excluded No Actual"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lookback_days",
+          "min_history_days",
+          "counted_hours",
+          "inside_hours",
+          "coverage_percent",
+          "excluded_no_band",
+          "excluded_no_decision_forecast",
+          "excluded_no_actual"
+        ],
+        "title": "BandCoverageResponse",
+        "description": "How often the actual fell inside its expected-error band over the scope. Hours are counted\nwhen they have a decision forecast, an actual and a band. The four counts add up to\n``target_hours`` of the scope, and the coverage is null when no hour is counted."
+      },
       "DecisionSnapshotResponse": {
         "properties": {
           "delivery_day": {
@@ -559,6 +619,16 @@
           },
           "kpis": {
             "$ref": "#/components/schemas/KpisResponse"
+          },
+          "band": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExpectedErrorBandResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -570,7 +640,8 @@
           "forecast_run_publish_time",
           "hours",
           "actuals",
-          "kpis"
+          "kpis",
+          "band"
         ],
         "title": "DecisionSnapshotResponse"
       },
@@ -659,6 +730,30 @@
         ],
         "title": "ErrorHistogramResponse"
       },
+      "ExpectedErrorBandResponse": {
+        "properties": {
+          "lower_error_mw": {
+            "type": "number",
+            "title": "Lower Error Mw"
+          },
+          "upper_error_mw": {
+            "type": "number",
+            "title": "Upper Error Mw"
+          },
+          "history_days": {
+            "type": "integer",
+            "title": "History Days"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lower_error_mw",
+          "upper_error_mw",
+          "history_days"
+        ],
+        "title": "ExpectedErrorBandResponse",
+        "description": "The band for the delivery day: P10 and P90 of the hourly decision-forecast errors (forecast\nminus actual, MW) over the 14 delivery days before it, at the same cutoff. A band needs at least\n7 of those days with measured errors."
+      },
       "HealthResponse": {
         "properties": {
           "status": {
@@ -724,6 +819,28 @@
               }
             ],
             "title": "Error Mw"
+          },
+          "band_low_mw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Band Low Mw"
+          },
+          "band_high_mw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Band High Mw"
           }
         },
         "type": "object",
@@ -732,10 +849,12 @@
           "publish_time",
           "forecast_mw",
           "actual_mw",
-          "error_mw"
+          "error_mw",
+          "band_low_mw",
+          "band_high_mw"
         ],
         "title": "HourResponse",
-        "description": "One delivery hour: decision forecast, aligned actual and forecast error, all in MW."
+        "description": "One delivery hour: decision forecast, aligned actual and forecast error, all in MW.\n\nThe band range is where the actual is expected to fall, given the decision forecast. It is null\nwhen the hour has no decision forecast, or the day has no expected-error band."
       },
       "KpisResponse": {
         "properties": {
