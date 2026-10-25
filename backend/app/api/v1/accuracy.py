@@ -13,13 +13,12 @@ from app.api.problems import (
 )
 from app.core.config import snapshot_path
 from app.domain.accuracy import (
-    ACCURACY_FIRST_DAY,
-    ACCURACY_LAST_DAY,
     ERROR_BIN_WIDTH_MW,
     AccuracyReport,
     accuracy_window,
     build_accuracy_report,
     decision_targets,
+    delivery_days_between,
 )
 from app.domain.decision import CUTOFF_PATTERN, DEFAULT_CUTOFF, parse_cutoff
 from app.repository.snapshot import SnapshotRepository, SnapshotUnavailableError
@@ -81,7 +80,7 @@ def _to_response(report: AccuracyReport) -> AccuracyResponse:
     summary = report.summary
     return AccuracyResponse(
         cutoff=report.cutoff.strftime("%H:%M"),
-        delivery_days=DeliveryDayRangeResponse(first=ACCURACY_FIRST_DAY, last=ACCURACY_LAST_DAY),
+        delivery_days=DeliveryDayRangeResponse(first=report.first_day, last=report.last_day),
         summary=AccuracySummaryResponse(
             target_hours=summary.target_hours,
             measured_hours=summary.measured_hours,
@@ -126,12 +125,14 @@ def accuracy(
 
     try:
         repository = SnapshotRepository(snapshot_path())
-        window_start, window_end = accuracy_window()
-        forecasts = repository.decision_forecasts_at(decision_targets(cutoff_time))
+        first_day, last_day = repository.delivery_days()
+        days = delivery_days_between(first_day, last_day)
+        window_start, window_end = accuracy_window(days)
+        forecasts = repository.decision_forecasts_at(decision_targets(days, cutoff_time))
         actuals = repository.actuals_between(window_start, window_end)
     except SnapshotUnavailableError as error:
         raise ProblemError(
             503, "Service Unavailable", "Data snapshot is not available", ABOUT_BLANK
         ) from error
 
-    return _to_response(build_accuracy_report(cutoff_time, forecasts, actuals))
+    return _to_response(build_accuracy_report(days, cutoff_time, forecasts, actuals))

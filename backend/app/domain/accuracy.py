@@ -25,9 +25,6 @@ from app.domain.decision import (
     delivery_day_hours,
 )
 
-ACCURACY_FIRST_DAY = date(2026, 1, 2)
-ACCURACY_LAST_DAY = date(2026, 2, 1)
-
 # Histogram bins are fixed-width, so two cutoffs compare bin for bin. Edges fall on multiples of the
 # width, which keeps the bins the same whatever the data. A 500 MW bin is about 1% of the typical
 # national wind generation, which is fine enough to see the shape of the error without noise.
@@ -60,45 +57,55 @@ class ErrorBin:
 
 @dataclass(frozen=True)
 class AccuracyReport:
+    first_day: date
+    last_day: date
     cutoff: time
     summary: AccuracySummary
     histogram: list[ErrorBin]
 
 
-def accuracy_days() -> list[date]:
-    """Every delivery day in the Accuracy view's scope, 2 Jan to 1 Feb 2026 inclusive."""
-    count = (ACCURACY_LAST_DAY - ACCURACY_FIRST_DAY).days + 1
-    return [ACCURACY_FIRST_DAY + timedelta(days=offset) for offset in range(count)]
+def delivery_days_between(first: date, last: date) -> list[date]:
+    """Every delivery day from ``first`` to ``last`` inclusive. The scope comes from the caller."""
+    count = (last - first).days + 1
+    return [first + timedelta(days=offset) for offset in range(count)]
 
 
-def accuracy_window() -> tuple[datetime, datetime]:
-    """The half-hourly actuals needed for the scope, as ``[start, end)`` in naive UTC."""
-    first = delivery_day_half_hours(ACCURACY_FIRST_DAY)[0]
-    last = delivery_day_half_hours(ACCURACY_LAST_DAY)[-1]
+def _require_days(days: Sequence[date]) -> None:
+    if not days:
+        raise ValueError("at least one delivery day is needed")
+
+
+def accuracy_window(days: Sequence[date]) -> tuple[datetime, datetime]:
+    """The half-hourly actuals needed for ``days``, as ``[start, end)`` in naive UTC."""
+    _require_days(days)
+    first = delivery_day_half_hours(days[0])[0]
+    last = delivery_day_half_hours(days[-1])[-1]
     return first, last + HALF_HOUR
 
 
-def decision_targets(cutoff: time) -> list[tuple[datetime, datetime]]:
-    """Every target hour in scope, paired with the decision cutoff of its own delivery day."""
+def decision_targets(days: Sequence[date], cutoff: time) -> list[tuple[datetime, datetime]]:
+    """Every target hour of ``days``, paired with the decision cutoff of its own delivery day."""
     return [
         (hour, decision_cutoff_instant(day, cutoff))
-        for day in accuracy_days()
+        for day in days
         for hour in delivery_day_hours(day)
     ]
 
 
 def build_accuracy_report(
+    days: Sequence[date],
     cutoff: time,
     forecasts: Iterable[DecisionForecast],
     actuals: Iterable[HalfHourActual],
 ) -> AccuracyReport:
-    """Accuracy over the scope, from the same per-day snapshots the Decision view uses.
+    """Accuracy over ``days``, from the same per-day snapshots the Decision view uses.
 
     Each delivery day goes through ``build_decision_snapshot``, so the decision-forecast rule and
     the hourly alignment are the ones in ``app.domain.decision``, not a second copy.
     """
-    day_of_target = {hour: day for day in accuracy_days() for hour in delivery_day_hours(day)}
-    forecasts_by_day: dict[date, list[DecisionForecast]] = {day: [] for day in accuracy_days()}
+    _require_days(days)
+    day_of_target = {hour: day for day in days for hour in delivery_day_hours(day)}
+    forecasts_by_day: dict[date, list[DecisionForecast]] = {day: [] for day in days}
     for forecast in forecasts:
         day = day_of_target.get(forecast.target_time)
         if day is not None:
@@ -107,13 +114,15 @@ def build_accuracy_report(
     actual_list = list(actuals)
     forecast_mw: list[float | None] = []
     actual_mw: list[float | None] = []
-    for day in accuracy_days():
+    for day in days:
         snapshot = build_decision_snapshot(day, cutoff, forecasts_by_day[day], actual_list)
         for hour in snapshot.hours:
             forecast_mw.append(hour.forecast_mw)
             actual_mw.append(hour.actual_mw)
 
     return AccuracyReport(
+        first_day=days[0],
+        last_day=days[-1],
         cutoff=cutoff,
         summary=summarise_accuracy(forecast_mw, actual_mw),
         histogram=error_histogram(forecast_mw, actual_mw),

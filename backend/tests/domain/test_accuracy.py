@@ -4,9 +4,10 @@ import pytest
 
 from app.domain.accuracy import (
     ERROR_BIN_WIDTH_MW,
-    accuracy_days,
+    accuracy_window,
     build_accuracy_report,
     decision_targets,
+    delivery_days_between,
     error_histogram,
     summarise_accuracy,
 )
@@ -125,16 +126,37 @@ def test_no_measured_hours_gives_no_histogram_bins():
     assert error_histogram(forecast_mw=[None], actual_mw=[None]) == []
 
 
-def test_accuracy_days_are_the_delivery_days_from_2_jan_to_1_feb_2026():
-    days = accuracy_days()
+JANUARY_DAYS = delivery_days_between(date(2026, 1, 2), date(2026, 2, 1))
+
+
+def test_delivery_days_run_from_first_to_last_inclusive():
+    days = delivery_days_between(date(2026, 1, 2), date(2026, 2, 1))
 
     assert days[0] == date(2026, 1, 2)
     assert days[-1] == date(2026, 2, 1)
     assert len(days) == 31
 
 
+def test_the_domain_is_not_pinned_to_january_so_the_december_warm_up_days_work_too():
+    # The walk-forward band needs 19 Dec to 1 Jan. The same rules must apply to those days.
+    warm_up = delivery_days_between(date(2025, 12, 19), date(2026, 1, 1))
+    targets = decision_targets(warm_up, time(9, 20))
+
+    assert len(warm_up) == 14
+    assert len(targets) == 14 * 24
+    # 19 Dec is decided on 18 Dec at 09:20 UK time, which is 09:20 UTC in December too.
+    assert targets[0] == (datetime(2025, 12, 19, 0, 0), datetime(2025, 12, 18, 9, 20))
+
+
+def test_the_window_of_actuals_spans_the_first_day_to_the_end_of_the_last():
+    start, end = accuracy_window(JANUARY_DAYS)
+
+    assert start == datetime(2026, 1, 2, 0, 0)
+    assert end == datetime(2026, 2, 2, 0, 0)
+
+
 def test_every_target_hour_is_paired_with_the_cutoff_of_its_own_delivery_day():
-    targets = decision_targets(time(9, 20))
+    targets = decision_targets(JANUARY_DAYS, time(9, 20))
 
     assert len(targets) == 31 * 24
     # 2 Jan 00:00 is decided at 09:20 UK time on 1 Jan, which is 09:20 UTC in January.
@@ -156,9 +178,10 @@ def test_the_report_selects_and_aligns_like_a_decision_snapshot_and_counts_exclu
         HalfHourActual(datetime(2026, 1, 2, 0, 30), 18200),
     ]
 
-    report = build_accuracy_report(time(9, 20), forecasts, actuals)
+    report = build_accuracy_report(JANUARY_DAYS, time(9, 20), forecasts, actuals)
 
     assert report.cutoff == time(9, 20)
+    assert (report.first_day, report.last_day) == (date(2026, 1, 2), date(2026, 2, 1))
     assert report.summary.target_hours == 31 * 24
     assert report.summary.measured_hours == 1
     assert report.summary.excluded_no_decision_forecast == 31 * 24 - 1

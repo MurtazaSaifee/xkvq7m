@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -43,9 +43,7 @@ ACCURACY_ACTUALS = (
 )
 
 
-@pytest.fixture
-def accuracy_snapshot(tmp_path: Path) -> Path:
-    path = tmp_path / "accuracy-snapshot.duckdb"
+def _write_snapshot(path: Path, delivery_first: date, delivery_last: date) -> Path:
     con = duckdb.connect(str(path))
     try:
         for statement in SCHEMA_STATEMENTS:
@@ -59,11 +57,19 @@ def accuracy_snapshot(tmp_path: Path) -> Path:
             "INSERT INTO ingestion_metadata VALUES "
             "(TIMESTAMP '2026-10-25 10:00:00', TIMESTAMP '2025-12-18 00:00:00', "
             "TIMESTAMP '2026-02-01 23:59:00', DATE '2025-12-19', DATE '2026-02-01', "
-            "DATE '2026-01-02', DATE '2026-02-01', 8, 0, 0, 0, 0, 7, 0, 0, 0)"
+            "?, ?, 8, 0, 0, 0, 0, 7, 0, 0, 0)",
+            [delivery_first, delivery_last],
         )
     finally:
         con.close()
     return path
+
+
+@pytest.fixture
+def accuracy_snapshot(tmp_path: Path) -> Path:
+    return _write_snapshot(
+        tmp_path / "accuracy-snapshot.duckdb", date(2026, 1, 2), date(2026, 2, 1)
+    )
 
 
 @pytest.fixture
@@ -119,6 +125,25 @@ async def test_the_response_states_the_cutoff_and_the_delivery_days_in_scope(
 
     assert body["cutoff"] == "09:20"
     assert body["delivery_days"] == {"first": "2026-01-02", "last": "2026-02-01"}
+
+
+async def test_the_scope_is_the_delivery_window_recorded_in_the_snapshot(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    # The December warm-up days are in scope when the snapshot's delivery window says so. The
+    # January forecasts and actuals fall outside this window, so no hour can be measured.
+    path = _write_snapshot(tmp_path / "warm-up.duckdb", date(2025, 12, 19), date(2026, 1, 1))
+    monkeypatch.setenv(SNAPSHOT_PATH_ENV, str(path))
+    transport = httpx.ASGITransport(app=create_app())
+
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/api/v1/accuracy")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["delivery_days"] == {"first": "2025-12-19", "last": "2026-01-01"}
+    assert body["summary"]["target_hours"] == 14 * 24
+    assert body["summary"]["measured_hours"] == 0
 
 
 async def test_the_shared_cutoff_changes_which_forecasts_are_measured(api: httpx.AsyncClient):
