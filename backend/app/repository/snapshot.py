@@ -11,10 +11,14 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
+from typing import Any, cast
 
 import duckdb
+import numpy as np
+from numpy.typing import NDArray
 
 from app.domain.decision import DecisionForecast, HalfHourActual
+from app.domain.horizon import ForecastColumns
 
 
 class SnapshotUnavailableError(LookupError):
@@ -144,6 +148,29 @@ class SnapshotRepository:
             for target, publish, generation in rows
             if publish is not None
         ]
+
+    def forecasts_between(self, start: datetime, end: datetime) -> ForecastColumns:
+        """Every forecast whose target time is in ``[start, end)``, as columns, not one per run.
+
+        Returned as numpy arrays straight from DuckDB, so the horizon analysis never builds a Python
+        object per row.
+        """
+        with self._connection() as con:
+            result = con.execute(
+                "SELECT target_time, publish_time, generation_mw FROM forecasts "
+                "WHERE target_time >= ? AND target_time < ?",
+                [start, end],
+            )
+            # The duckdb package ships no type stubs, so fetchnumpy's return type is unknown here.
+            columns = cast(
+                "dict[str, NDArray[Any]]",
+                result.fetchnumpy(),  # pyright: ignore[reportUnknownMemberType]
+            )
+        return ForecastColumns(
+            target_time=np.asarray(columns["target_time"], dtype="datetime64[us]"),
+            publish_time=np.asarray(columns["publish_time"], dtype="datetime64[us]"),
+            generation_mw=np.asarray(columns["generation_mw"], dtype=np.float64),
+        )
 
     def actuals_between(self, start: datetime, end: datetime) -> list[HalfHourActual]:
         """Actual generation for target times in ``[start, end)``, in time order."""
