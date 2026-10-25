@@ -17,7 +17,8 @@ ENV UV_COMPILE_BYTECODE=1 \
     UV_PYTHON_DOWNLOADS=never \
     PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
-    WIND_STATIC_DIR=/app/static
+    WIND_STATIC_DIR=/app/static \
+    WIND_SNAPSHOT_PATH=/app/data/snapshot.duckdb
 WORKDIR /app
 
 # Dependencies first, so source-only changes reuse this layer.
@@ -27,6 +28,8 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY backend/app ./app
 RUN uv sync --frozen --no-dev
 COPY --from=frontend /frontend/dist ./static
+# The committed snapshot, produced by `make ingest`. The API only reads it and never calls Elexon.
+COPY data/snapshot.duckdb ./data/snapshot.duckdb
 
 EXPOSE 8000
 # Access logging is done by the app's own middleware, so uvicorn's plain-text access log is off.
