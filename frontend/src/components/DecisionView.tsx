@@ -1,10 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useDecisionSnapshotQuery, useMetaQuery } from "../api/queries";
 import { buildChartOption, CHART_COLORS } from "../decision/chartOption";
 import { deliveryDaysBetween } from "../decision/days";
 import { useDecisionCutoff } from "../decision/DecisionCutoffContext";
-import { dayFromSearch, searchForDay } from "../decision/dayQuery";
+import { DAY_QUERY_PARAM, dayFromSearch, searchForDay } from "../decision/dayQuery";
 import { formatDay, outlookSentence } from "../format";
 import { prefersReducedMotion } from "../motion";
 import { CutoffPicker } from "./CutoffPicker";
@@ -64,6 +64,17 @@ export function DecisionView() {
     () => (snapshot.data ? buildChartOption(snapshot.data, prefersReducedMotion()) : null),
     [snapshot.data],
   );
+
+  // A day the URL names but the view does not show is replaced, so the link matches the chart.
+  useEffect(() => {
+    if (selectedDay === null) {
+      return;
+    }
+    const named = new URLSearchParams(window.location.search).get(DAY_QUERY_PARAM);
+    if (named !== null && named !== selectedDay) {
+      writeDayToUrl(selectedDay);
+    }
+  }, [selectedDay]);
 
   if (meta.isError) {
     return (

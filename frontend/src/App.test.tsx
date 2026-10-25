@@ -117,15 +117,16 @@ describe("App", () => {
     expect(await screen.findByText("API unreachable")).toBeInTheDocument();
   });
 
-  it("shows the data as-of date from the snapshot ingestion time", async () => {
+  it("shows the delivery days in the header, and the snapshot build date only in its tooltip", async () => {
     const fetchMock = stubApi({ "/api/v1/health": healthy, "/api/v1/meta": metaOk });
 
     renderApp();
 
-    const badge = await screen.findByText("Data as of 25 Oct 2026");
+    const badge = await screen.findByText("Delivery days 2 Jan to 1 Feb 2026");
+    expect(screen.queryByText(/Data as of/)).not.toBeInTheDocument();
     expect(badge).toHaveAttribute(
       "title",
-      "Forecasts 17 Dec 2025 to 3 Feb 2026; actuals 19 Dec 2025 to 31 Jan 2026",
+      "Snapshot built 25 Oct 2026. Forecasts 17 Dec 2025 to 3 Feb 2026; actuals 19 Dec 2025 to 31 Jan 2026",
     );
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/meta", expect.anything());
   });

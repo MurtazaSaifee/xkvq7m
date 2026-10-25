@@ -43,6 +43,118 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "The data snapshot is not available",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "title": "Type",
+                      "default": "about:blank"
+                    },
+                    "title": {
+                      "type": "string",
+                      "title": "Title"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "title": "Status"
+                    },
+                    "detail": {
+                      "type": "string",
+                      "title": "Detail"
+                    },
+                    "instance": {
+                      "type": "string",
+                      "title": "Instance"
+                    },
+                    "errors": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "additionalProperties": true,
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Errors"
+                    }
+                  },
+                  "type": "object",
+                  "required": [
+                    "title",
+                    "status",
+                    "detail",
+                    "instance"
+                  ],
+                  "title": "ProblemDetail",
+                  "description": "The body of an error response. ``errors`` lists each invalid parameter, if any."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "title": "Type",
+                      "default": "about:blank"
+                    },
+                    "title": {
+                      "type": "string",
+                      "title": "Title"
+                    },
+                    "status": {
+                      "type": "integer",
+                      "title": "Status"
+                    },
+                    "detail": {
+                      "type": "string",
+                      "title": "Detail"
+                    },
+                    "instance": {
+                      "type": "string",
+                      "title": "Instance"
+                    },
+                    "errors": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "additionalProperties": true,
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Errors"
+                    }
+                  },
+                  "type": "object",
+                  "required": [
+                    "title",
+                    "status",
+                    "detail",
+                    "instance"
+                  ],
+                  "title": "ProblemDetail",
+                  "description": "The body of an error response. ``errors`` lists each invalid parameter, if any."
+                }
+              }
+            }
           }
         }
       }
@@ -93,7 +205,7 @@
             }
           },
           "422": {
-            "description": "Invalid or out-of-range parameters",
+            "description": "Invalid parameters",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -150,6 +262,62 @@
           },
           "503": {
             "description": "The data snapshot is not available",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "The body of an error response. ``errors`` lists each invalid parameter, if any.",
+                  "properties": {
+                    "type": {
+                      "default": "about:blank",
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "title": "Instance",
+                      "type": "string"
+                    },
+                    "errors": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "additionalProperties": true,
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Errors"
+                    }
+                  },
+                  "required": [
+                    "title",
+                    "status",
+                    "detail",
+                    "instance"
+                  ],
+                  "title": "ProblemDetail",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -298,6 +466,62 @@
           },
           "503": {
             "description": "The data snapshot is not available",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "The body of an error response. ``errors`` lists each invalid parameter, if any.",
+                  "properties": {
+                    "type": {
+                      "default": "about:blank",
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "title": "Instance",
+                      "type": "string"
+                    },
+                    "errors": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "additionalProperties": true,
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Errors"
+                    }
+                  },
+                  "required": [
+                    "title",
+                    "status",
+                    "detail",
+                    "instance"
+                  ],
+                  "title": "ProblemDetail",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -572,6 +796,28 @@
               }
             ],
             "title": "Rmse Mw"
+          },
+          "p90_abs_error_mw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P90 Abs Error Mw"
+          },
+          "nmae_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nmae Percent"
           }
         },
         "type": "object",
@@ -579,10 +825,12 @@
           "measured_hours",
           "mae_mw",
           "bias_mw",
-          "rmse_mw"
+          "rmse_mw",
+          "p90_abs_error_mw",
+          "nmae_percent"
         ],
         "title": "AlignmentMetricsResponse",
-        "description": "Headline metrics under one alignment rule, in MW. Each side counts the hours its own rule can\nmeasure, so ``measured_hours`` can differ between the two. Metrics are null when none can be."
+        "description": "The headline metrics under one alignment rule, with the same names and definitions as the\nsummary, in MW unless stated. Each side counts the hours its own rule can measure, so\n``measured_hours`` can differ between the two. Metrics are null when none can be."
       },
       "AlignmentSensitivityResponse": {
         "properties": {

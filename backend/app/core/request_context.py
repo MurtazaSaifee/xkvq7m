@@ -50,7 +50,9 @@ class RequestContextMiddleware:
             return
 
         request_id = _incoming_request_id(scope) or uuid.uuid4().hex
-        token = _request_id.set(request_id)
+        # The unexpected-error handler runs after this middleware has unwound, so it reads the ID
+        # from the request state rather than from the ContextVar.
+        scope.setdefault("state", {})["request_id"] = request_id
         started = time.perf_counter()
         status_code = 500
 
@@ -64,17 +66,17 @@ class RequestContextMiddleware:
                 ]
             await send(message)
 
-        try:
-            await self.app(scope, receive, send_with_request_id)
-        finally:
-            access_logger.info(
-                "request completed",
-                extra={
-                    "request_id": request_id,
-                    "method": scope["method"],
-                    "path": scope["path"],
-                    "status": status_code,
-                    "duration_ms": round((time.perf_counter() - started) * 1000, 2),
-                },
-            )
-            _request_id.reset(token)
+        with bind_request_id(request_id):
+            try:
+                await self.app(scope, receive, send_with_request_id)
+            finally:
+                access_logger.info(
+                    "request completed",
+                    extra={
+                        "request_id": request_id,
+                        "method": scope["method"],
+                        "path": scope["path"],
+                        "status": status_code,
+                        "duration_ms": round((time.perf_counter() - started) * 1000, 2),
+                    },
+                )

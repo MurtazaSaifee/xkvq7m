@@ -320,6 +320,33 @@ describe("DecisionView", () => {
       await screen.findByRole("heading", { name: /Wind outlook for 1 Feb/ }),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Delivery day")).toHaveValue("2026-02-01");
+    expect(new URLSearchParams(window.location.search).get("day")).toBe("2026-02-01");
+  });
+
+  it("replaces a malformed day in the URL with the day it shows, keeping the cutoff", async () => {
+    window.history.replaceState(null, "", "/?day=tomorrow&cutoff=14:30");
+    stubApi({
+      snapshot: (day) => jsonResponse(snapshotFor(day ?? "")),
+    });
+
+    renderView();
+
+    await screen.findByRole("heading", { name: /Wind outlook for 1 Feb/ });
+    const params = new URLSearchParams(window.location.search);
+    expect(params.get("day")).toBe("2026-02-01");
+    expect(params.get("cutoff")).toBe("14:30");
+  });
+
+  it("leaves the URL without a day alone when none is named", async () => {
+    window.history.replaceState(null, "", "/?cutoff=14:30");
+    stubApi({
+      snapshot: (day) => jsonResponse(snapshotFor(day ?? "")),
+    });
+
+    renderView();
+
+    await screen.findByRole("heading", { name: /Wind outlook for 1 Feb/ });
+    expect(new URLSearchParams(window.location.search).get("day")).toBeNull();
   });
 
   it("writes the chosen delivery day into the URL, beside the cutoff", async () => {

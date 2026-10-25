@@ -185,7 +185,7 @@ def alignment_sensitivity(
     )
 
 
-def _measured_errors(
+def _paired_forecast_and_actual(
     forecast_mw: Sequence[float | None], actual_mw: Sequence[float | None]
 ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
     """Forecast and actual for the hours where both exist, as arrays of equal length."""
@@ -220,7 +220,7 @@ def summarise_accuracy(
         for forecast, actual in zip(forecast_mw, actual_mw, strict=True)
         if forecast is not None and actual is None
     )
-    forecast, actual = _measured_errors(forecast_mw, actual_mw)
+    forecast, actual = _paired_forecast_and_actual(forecast_mw, actual_mw)
     measured = int(forecast.size)
     counts = {
         "target_hours": len(forecast_mw),
@@ -264,7 +264,7 @@ def error_histogram(
     The bins run from the lowest error's bin to the highest error's bin, so every bin in between is
     listed, even when empty. With no measured hour there are no bins.
     """
-    forecast, actual = _measured_errors(forecast_mw, actual_mw)
+    forecast, actual = _paired_forecast_and_actual(forecast_mw, actual_mw)
     if forecast.size == 0:
         return []
     errors = forecast - actual

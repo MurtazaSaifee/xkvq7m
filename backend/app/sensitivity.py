@@ -21,6 +21,8 @@ ROWS: tuple[tuple[str, str, bool], ...] = (
     ("MAE (MW)", "mae_mw", False),
     ("Bias (MW)", "bias_mw", False),
     ("RMSE (MW)", "rmse_mw", False),
+    ("P90 (MW)", "p90_abs_error_mw", False),
+    ("nMAE (%)", "nmae_percent", False),
 )
 
 

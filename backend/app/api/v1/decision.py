@@ -1,16 +1,10 @@
 from datetime import UTC, date, datetime
-from typing import Annotated, Any
+from typing import Annotated
 
 from fastapi import APIRouter, Query
 from pydantic import AwareDatetime, BaseModel
 
-from app.api.problems import (
-    ABOUT_BLANK,
-    INVALID_PARAMETER,
-    PROBLEM_MEDIA_TYPE,
-    ProblemDetail,
-    ProblemError,
-)
+from app.api.problems import PROBLEM_RESPONSES, ProblemError, invalid_cutoff, snapshot_unavailable
 from app.core.config import snapshot_path
 from app.domain.accuracy import accuracy_window, decision_targets
 from app.domain.band import ExpectedErrorBand, band_for_day, lookback_days
@@ -27,13 +21,6 @@ from app.repository.snapshot import SnapshotRepository, SnapshotUnavailableError
 router = APIRouter()
 
 DELIVERY_DAY_OUT_OF_RANGE = "urn:wind-forecast:problem:delivery-day-out-of-range"
-_PROBLEM_CONTENT: dict[str, Any] = {
-    PROBLEM_MEDIA_TYPE: {"schema": ProblemDetail.model_json_schema()}
-}
-_PROBLEM_RESPONSES: dict[int | str, dict[str, Any]] = {
-    422: {"description": "Invalid or out-of-range parameters", "content": _PROBLEM_CONTENT},
-    503: {"description": "The data snapshot is not available", "content": _PROBLEM_CONTENT},
-}
 
 
 class HourResponse(BaseModel):
@@ -108,7 +95,10 @@ def _band_response(band: ExpectedErrorBand | None) -> ExpectedErrorBandResponse 
 
 
 def _hour_response(hour: DecisionHour, band: ExpectedErrorBand | None) -> HourResponse:
-    band_low, band_high = (None, None) if band is None else band.actual_range_mw(hour.forecast_mw)
+    if band is None or hour.forecast_mw is None:
+        band_low, band_high = None, None
+    else:
+        band_low, band_high = band.actual_range_mw(hour.forecast_mw)
     return HourResponse(
         target_time=_utc(hour.hour_start),
         publish_time=_utc_or_none(hour.publish_time),
@@ -150,7 +140,7 @@ def _to_response(
     "/decision-snapshot",
     response_model=DecisionSnapshotResponse,
     summary="Decision snapshot for one delivery day, with day KPIs",
-    responses=_PROBLEM_RESPONSES,
+    responses=PROBLEM_RESPONSES,
 )
 def decision_snapshot(
     delivery_day: Annotated[
@@ -179,16 +169,14 @@ def decision_snapshot(
         try:
             cutoff_time = parse_cutoff(cutoff)
         except ValueError as error:
-            raise ProblemError(422, "Invalid request", str(error), INVALID_PARAMETER) from error
+            raise invalid_cutoff(error) from error
         # The band reads the fourteen days that end two days before the delivery day, so their
         # forecasts and actuals are fetched too. The decision day itself is never read by the band.
         days = [*lookback_days(delivery_day), delivery_day]
         forecasts = repository.decision_forecasts_at(decision_targets(days, cutoff_time))
         actuals = repository.actuals_between(*accuracy_window(days))
     except SnapshotUnavailableError as error:
-        raise ProblemError(
-            503, "Service Unavailable", "Data snapshot is not available", ABOUT_BLANK
-        ) from error
+        raise snapshot_unavailable() from error
 
     snapshot = build_decision_snapshot(delivery_day, cutoff_time, forecasts, actuals)
     band = band_for_day(delivery_day, cutoff_time, forecasts, actuals)

@@ -348,3 +348,17 @@ async def test_the_top_of_hour_rule_in_the_sensitivity_is_measured_against_the_t
     assert top["mae_mw"] == pytest.approx(600)
     assert top["bias_mw"] == pytest.approx(1600 / 6)
     assert top["rmse_mw"] == pytest.approx(460000**0.5)
+
+
+async def test_the_sensitivity_recomputes_p90_and_nmae_under_both_rules(api: httpx.AsyncClient):
+    # Hourly means: errors 900, -500, 0, 1000, -500, 400 give a P90 of 950, and their mean actual
+    # is 92200 / 6. Top of hour: errors 1000, -500, 100, 1000, -500, 500 give a P90 of 1000, and
+    # the top-of-hour actuals sum to 91900. The headline summary is the hourly-mean side.
+    sensitivity = (await _accuracy(api))["alignment_sensitivity"]
+
+    hourly = sensitivity["hourly_mean"]
+    assert hourly["p90_abs_error_mw"] == pytest.approx(950)
+    assert hourly["nmae_percent"] == pytest.approx(3300 / 92200 * 100)
+    top = sensitivity["top_of_hour"]
+    assert top["p90_abs_error_mw"] == pytest.approx(1000)
+    assert top["nmae_percent"] == pytest.approx(3600 / 91900 * 100)

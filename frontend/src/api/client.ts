@@ -32,54 +32,45 @@ async function problemMessage(response: Response, fallback: string): Promise<str
   return fallback;
 }
 
-export async function fetchDecisionSnapshot(
+/**
+ * GETs a JSON resource. A failed request throws the problem detail the route sent, or a message with
+ * the status code when the body carries none. ``label`` names the request in that fallback message.
+ */
+async function getJson<T>(path: string, label: string, signal?: AbortSignal): Promise<T> {
+  const response = await fetch(path, { signal, headers: { Accept: "application/json" } });
+  if (!response.ok) {
+    const fallback = `${label} failed with HTTP ${response.status}`;
+    throw new Error(await problemMessage(response, fallback));
+  }
+  return (await response.json()) as T;
+}
+
+export function fetchDecisionSnapshot(
   deliveryDay: string,
   cutoff: string,
   signal?: AbortSignal,
 ): Promise<DecisionSnapshot> {
   const params = new URLSearchParams({ delivery_day: deliveryDay, cutoff });
-  const response = await fetch(`/api/v1/decision-snapshot?${params.toString()}`, {
+  return getJson<DecisionSnapshot>(
+    `/api/v1/decision-snapshot?${params.toString()}`,
+    "Decision snapshot request",
     signal,
-    headers: { Accept: "application/json" },
-  });
-  if (!response.ok) {
-    const fallback = `Decision snapshot request failed with HTTP ${response.status}`;
-    throw new Error(await problemMessage(response, fallback));
-  }
-  return (await response.json()) as DecisionSnapshot;
+  );
 }
 
-export async function fetchAccuracy(cutoff: string, signal?: AbortSignal): Promise<AccuracyResponse> {
+export function fetchAccuracy(cutoff: string, signal?: AbortSignal): Promise<AccuracyResponse> {
   const params = new URLSearchParams({ cutoff });
-  const response = await fetch(`/api/v1/accuracy?${params.toString()}`, {
+  return getJson<AccuracyResponse>(
+    `/api/v1/accuracy?${params.toString()}`,
+    "Accuracy request",
     signal,
-    headers: { Accept: "application/json" },
-  });
-  if (!response.ok) {
-    const fallback = `Accuracy request failed with HTTP ${response.status}`;
-    throw new Error(await problemMessage(response, fallback));
-  }
-  return (await response.json()) as AccuracyResponse;
+  );
 }
 
-export async function fetchHealth(signal?: AbortSignal): Promise<HealthResponse> {
-  const response = await fetch("/api/v1/health", {
-    signal,
-    headers: { Accept: "application/json" },
-  });
-  if (!response.ok) {
-    throw new Error(`Health check failed with HTTP ${response.status}`);
-  }
-  return (await response.json()) as HealthResponse;
+export function fetchHealth(signal?: AbortSignal): Promise<HealthResponse> {
+  return getJson<HealthResponse>("/api/v1/health", "Health check", signal);
 }
 
-export async function fetchMeta(signal?: AbortSignal): Promise<MetaResponse> {
-  const response = await fetch("/api/v1/meta", {
-    signal,
-    headers: { Accept: "application/json" },
-  });
-  if (!response.ok) {
-    throw new Error(`Coverage request failed with HTTP ${response.status}`);
-  }
-  return (await response.json()) as MetaResponse;
+export function fetchMeta(signal?: AbortSignal): Promise<MetaResponse> {
+  return getJson<MetaResponse>("/api/v1/meta", "Coverage request", signal);
 }

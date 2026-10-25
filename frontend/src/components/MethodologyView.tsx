@@ -3,14 +3,12 @@ import type { ReactNode } from "react";
 import { useAccuracyQuery, useMetaQuery } from "../api/queries";
 import { CUTOFF_PRESETS } from "../decision/cutoffs";
 import { useDecisionCutoff } from "../decision/DecisionCutoffContext";
-import { formatCount } from "../format";
+import { formatCount, formatDayRange } from "../format";
 import { CutoffPicker } from "./CutoffPicker";
 import { AlignmentSensitivityTable } from "./methodology/AlignmentSensitivityTable";
 
-// The band rules the API applies (BAND_LOOKBACK_DAYS and BAND_MIN_HISTORY_DAYS in
-// backend/app/domain/band.py). The copy below states them, so change both places together.
-const BAND_LOOKBACK_DAYS = 14;
-const BAND_MIN_HISTORY_DAYS = 7;
+// Figures the copy states come from the API. They show a dash until the response arrives.
+const EM_DASH = "—";
 
 const METRICS: readonly [term: string, definition: string][] = [
   [
@@ -70,6 +68,10 @@ export function MethodologyView() {
   const { cutoff } = useDecisionCutoff();
   const accuracy = useAccuracyQuery(cutoff);
   const meta = useMetaQuery();
+  const days = meta.data?.delivery_days;
+  const band = accuracy.data?.band_coverage;
+  const lookbackDays = band?.lookback_days;
+  const oldestBandDay = lookbackDays === undefined ? EM_DASH : `D-${lookbackDays + 1}`;
 
   return (
     <div className="max-w-3xl space-y-10">
@@ -83,8 +85,9 @@ export function MethodologyView() {
 
       <Section id="methodology-scope" title="What the figures cover">
         <Paragraph>
-          Decision snapshots and headline metrics cover only delivery days 2 Jan to 1 Feb 2026, the
-          days bought on decisions made in January 2026.
+          Decision snapshots and headline metrics cover only the delivery days{" "}
+          {days ? formatDayRange(days.first, days.last) : EM_DASH}, which are bought on decisions made
+          the day before.
         </Paragraph>
         <Paragraph>
           December 2025 data is used only as band warm-up. The band for each day reads only errors the
@@ -157,13 +160,15 @@ export function MethodologyView() {
       <Section id="methodology-band" title="Expected-error band and band coverage">
         <Paragraph>
           For a delivery day D, the expected-error band is the P10 and P90 of the hourly
-          decision-forecast errors over the {BAND_LOOKBACK_DAYS} delivery days that end two days before
-          it (D-15 to D-2), at the same cutoff. The errors are pooled hour by hour, not averaged by day.
+          decision-forecast errors over the {lookbackDays ?? EM_DASH} delivery days that end two days
+          before it ({oldestBandDay} to D-2), at the same cutoff. The errors are pooled hour by hour,
+          not averaged by day.
         </Paragraph>
         <Paragraph>
           Nothing from D-1 or later is used. The decision day is still in progress at the cutoff, so its
-          actuals are incomplete. A day with fewer than {BAND_MIN_HISTORY_DAYS} days with errors gets no
-          band. The earliest days have less history, because the actuals start on 19 December 2025.
+          actuals are incomplete. A day with fewer than {band?.min_history_days ?? EM_DASH} days with
+          errors gets no band. The earliest days have less history, because the actuals start on 19
+          December 2025.
         </Paragraph>
         <Paragraph>
           For a forecast F, the band for its actual runs from F minus P90 to F minus P10. Band coverage

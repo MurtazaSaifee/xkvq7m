@@ -18,12 +18,16 @@ def _payload(top_mae: float | None = 600.0) -> dict[str, Any]:
                 "mae_mw": 550.0,
                 "bias_mw": 216.7,
                 "rmse_mw": 641.6,
+                "p90_abs_error_mw": 950.0,
+                "nmae_percent": 3.6,
             },
             "top_of_hour": {
                 "measured_hours": 6,
                 "mae_mw": top_mae,
                 "bias_mw": 266.7,
                 "rmse_mw": 678.2,
+                "p90_abs_error_mw": 1000.0,
+                "nmae_percent": 3.9,
             },
         },
     }
@@ -51,6 +55,13 @@ def test_render_puts_the_two_rules_side_by_side_with_the_difference():
     assert _row(text, "MAE") == ["MAE", "(MW)", "550.0", "600.0", "+50.0"]
     assert _row(text, "Bias") == ["Bias", "(MW)", "216.7", "266.7", "+50.0"]
     assert _row(text, "Measured") == ["Measured", "hours", "6", "6", "+0"]
+
+
+def test_render_adds_the_p90_and_nmae_rows_for_both_rules():
+    text = render(_payload())
+
+    assert _row(text, "P90") == ["P90", "(MW)", "950.0", "1,000.0", "+50.0"]
+    assert _row(text, "nMAE") == ["nMAE", "(%)", "3.6", "3.9", "+0.3"]
 
 
 def test_render_shows_a_dash_where_a_rule_has_no_measured_hour():

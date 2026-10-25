@@ -1,5 +1,6 @@
 import type { MetaResponse } from "../api/client";
 import { useMetaQuery } from "../api/queries";
+import { formatDayRange } from "../format";
 import { StatusBadge } from "./StatusBadge";
 
 // Dates are formatted in UTC so the badge never shifts with the viewer's timezone.
@@ -20,12 +21,13 @@ function describeRange(first: string | null, last: string | null): string {
 }
 
 function coverageTitle(meta: MetaResponse): string {
+  const built = `Snapshot built ${formatDay(meta.ingested_at)}`;
   const forecasts = describeRange(
     meta.forecasts.first_target_time,
     meta.forecasts.last_target_time,
   );
   const actuals = describeRange(meta.actuals.first_target_time, meta.actuals.last_target_time);
-  return `Forecasts ${forecasts}; actuals ${actuals}`;
+  return `${built}. Forecasts ${forecasts}; actuals ${actuals}`;
 }
 
 export function CoverageBadge() {
@@ -35,10 +37,11 @@ export function CoverageBadge() {
     return <StatusBadge tone="danger" label="Data coverage unavailable" />;
   }
   if (meta.isSuccess) {
+    const { first, last } = meta.data.delivery_days;
     return (
       <StatusBadge
         tone="neutral"
-        label={`Data as of ${formatDay(meta.data.ingested_at)}`}
+        label={`Delivery days ${formatDayRange(first, last)}`}
         title={coverageTitle(meta.data)}
       />
     );
