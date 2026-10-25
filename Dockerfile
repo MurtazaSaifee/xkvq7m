@@ -20,6 +20,8 @@ ENV UV_COMPILE_BYTECODE=1 \
     WIND_STATIC_DIR=/app/static \
     WIND_SNAPSHOT_PATH=/app/data/snapshot.duckdb
 WORKDIR /app
+# The app runs as an unprivileged user. It only reads the files under /app and writes to /tmp.
+RUN useradd --system --uid 10001 --no-create-home --shell /usr/sbin/nologin app
 
 # Dependencies first, so source-only changes reuse this layer.
 COPY backend/pyproject.toml backend/uv.lock backend/.python-version ./
@@ -32,5 +34,6 @@ COPY --from=frontend /frontend/dist ./static
 COPY data/snapshot.duckdb ./data/snapshot.duckdb
 
 EXPOSE 8000
+USER app
 # Access logging is done by the app's own middleware, so uvicorn's plain-text access log is off.
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]
