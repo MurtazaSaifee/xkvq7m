@@ -15,9 +15,10 @@ from datetime import date, datetime, time, timedelta
 import numpy as np
 from numpy.typing import NDArray
 
-from app.domain.alignment import HALF_HOUR
+from app.domain.alignment import HALF_HOUR, top_of_hour_actual
 from app.domain.decision import (
     DecisionForecast,
+    DecisionSnapshot,
     HalfHourActual,
     build_decision_snapshot,
     decision_cutoff_instant,
@@ -92,16 +93,29 @@ def decision_targets(days: Sequence[date], cutoff: time) -> list[tuple[datetime,
     ]
 
 
-def build_accuracy_report(
+@dataclass(frozen=True)
+class AlignmentSensitivity:
+    """Headline metrics under the two alignment rules, over the same decision forecasts.
+
+    ``hourly_mean`` is the rule the headline figures use: the mean of the two half-hours. ``top_of_hour``
+    compares each hour with the half-hour starting at h:00 alone. Each side measures the hours its own
+    rule can measure, so the two ``measured_hours`` can differ.
+    """
+
+    hourly_mean: AccuracySummary
+    top_of_hour: AccuracySummary
+
+
+def _day_snapshots(
     days: Sequence[date],
     cutoff: time,
     forecasts: Iterable[DecisionForecast],
     actuals: Iterable[HalfHourActual],
-) -> AccuracyReport:
-    """Accuracy over ``days``, from the same per-day snapshots the Decision view uses.
+) -> list[DecisionSnapshot]:
+    """One decision snapshot per delivery day, built by ``build_decision_snapshot``.
 
-    Each delivery day goes through ``build_decision_snapshot``, so the decision-forecast rule and
-    the hourly alignment are the ones in ``app.domain.decision``, not a second copy.
+    The decision-forecast rule and the hourly alignment are the ones in ``app.domain.decision``, not
+    a second copy, so every figure in this module agrees with the Decision view.
     """
     _require_days(days)
     day_of_target = {hour: day for day in days for hour in delivery_day_hours(day)}
@@ -112,10 +126,21 @@ def build_accuracy_report(
             forecasts_by_day[day].append(forecast)
 
     actual_list = list(actuals)
+    return [
+        build_decision_snapshot(day, cutoff, forecasts_by_day[day], actual_list) for day in days
+    ]
+
+
+def build_accuracy_report(
+    days: Sequence[date],
+    cutoff: time,
+    forecasts: Iterable[DecisionForecast],
+    actuals: Iterable[HalfHourActual],
+) -> AccuracyReport:
+    """Accuracy over ``days``, from the same per-day snapshots the Decision view uses."""
     forecast_mw: list[float | None] = []
     actual_mw: list[float | None] = []
-    for day in days:
-        snapshot = build_decision_snapshot(day, cutoff, forecasts_by_day[day], actual_list)
+    for snapshot in _day_snapshots(days, cutoff, forecasts, actuals):
         for hour in snapshot.hours:
             forecast_mw.append(hour.forecast_mw)
             actual_mw.append(hour.actual_mw)
@@ -126,6 +151,37 @@ def build_accuracy_report(
         cutoff=cutoff,
         summary=summarise_accuracy(forecast_mw, actual_mw),
         histogram=error_histogram(forecast_mw, actual_mw),
+    )
+
+
+def alignment_sensitivity(
+    days: Sequence[date],
+    cutoff: time,
+    forecasts: Iterable[DecisionForecast],
+    actuals: Iterable[HalfHourActual],
+) -> AlignmentSensitivity:
+    """Headline metrics under the hourly-mean rule and the top-of-hour rule, for the same forecasts.
+
+    The decision forecasts are selected once, by the same rule as the report. Only the actual
+    changes between the two sides.
+    """
+    forecast_mw: list[float | None] = []
+    hourly_mw: list[float | None] = []
+    top_mw: list[float | None] = []
+    for snapshot in _day_snapshots(days, cutoff, forecasts, actuals):
+        half_hours = {
+            half.target_time: half.generation_mw
+            for half in snapshot.actuals
+            if half.generation_mw is not None
+        }
+        for hour in snapshot.hours:
+            forecast_mw.append(hour.forecast_mw)
+            hourly_mw.append(hour.actual_mw)
+            top_mw.append(top_of_hour_actual(hour.hour_start, half_hours))
+
+    return AlignmentSensitivity(
+        hourly_mean=summarise_accuracy(forecast_mw, hourly_mw),
+        top_of_hour=summarise_accuracy(forecast_mw, top_mw),
     )
 
 
