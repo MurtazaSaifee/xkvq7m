@@ -18,3 +18,4 @@ dist/
 .env.*
 .vercel/
 .DS_Store
+.claude/worktrees/
