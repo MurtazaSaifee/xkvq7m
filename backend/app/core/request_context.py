@@ -50,6 +50,9 @@ class RequestContextMiddleware:
             return
 
         request_id = _incoming_request_id(scope) or uuid.uuid4().hex
+        # The unexpected-error handler runs after this middleware has unwound, so it reads the ID
+        # from the request state rather than from the ContextVar.
+        scope.setdefault("state", {})["request_id"] = request_id
         token = _request_id.set(request_id)
         started = time.perf_counter()
         status_code = 500
