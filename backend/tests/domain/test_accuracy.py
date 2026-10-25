@@ -231,6 +231,31 @@ def test_alignment_sensitivity_compares_the_hourly_mean_with_the_top_of_hour_act
     assert result.top_of_hour.excluded_no_actual == 1
 
 
+def test_the_sensitivity_gives_p90_and_nmae_under_each_rule_from_the_same_example():
+    # The example above. Hourly means: errors 900 and -500, so the P90 of the absolute errors is
+    # 500 + 0.9 * 400 = 860. Their mean actual is 18300. Top of hour: errors 1000, -500 and 1000,
+    # so the P90 is 1000. Their mean actual is 17500.
+    forecasts = [
+        DecisionForecast(datetime(2026, 1, 2, 0, 0), datetime(2026, 1, 1, 7, 30), 19000),
+        DecisionForecast(datetime(2026, 1, 2, 1, 0), datetime(2026, 1, 1, 7, 30), 18000),
+        DecisionForecast(datetime(2026, 1, 2, 2, 0), datetime(2026, 1, 1, 7, 30), 17000),
+    ]
+    actuals = [
+        HalfHourActual(datetime(2026, 1, 2, 0, 0), 18000),
+        HalfHourActual(datetime(2026, 1, 2, 0, 30), 18200),
+        HalfHourActual(datetime(2026, 1, 2, 1, 0), 18500),
+        HalfHourActual(datetime(2026, 1, 2, 1, 30), 18500),
+        HalfHourActual(datetime(2026, 1, 2, 2, 0), 16000),
+    ]
+
+    result = alignment_sensitivity([date(2026, 1, 2)], time(9, 20), forecasts, actuals)
+
+    assert result.hourly_mean.p90_abs_error_mw == pytest.approx(860)
+    assert result.hourly_mean.nmae_percent == pytest.approx(700 / 18300 * 100)
+    assert result.top_of_hour.p90_abs_error_mw == pytest.approx(1000)
+    assert result.top_of_hour.nmae_percent == pytest.approx((2500 / 3) / 17500 * 100)
+
+
 def test_the_hourly_mean_side_of_the_sensitivity_is_the_headline_summary():
     forecasts = [
         DecisionForecast(datetime(2026, 1, 2, 0, 0), datetime(2026, 1, 1, 7, 30), 19000),

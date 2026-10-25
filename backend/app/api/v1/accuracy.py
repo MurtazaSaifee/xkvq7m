@@ -134,13 +134,16 @@ class HorizonCurveResponse(BaseModel):
 
 
 class AlignmentMetricsResponse(BaseModel):
-    """Headline metrics under one alignment rule, in MW. Each side counts the hours its own rule can
-    measure, so ``measured_hours`` can differ between the two. Metrics are null when none can be."""
+    """The headline metrics under one alignment rule, with the same names and definitions as the
+    summary, in MW unless stated. Each side counts the hours its own rule can measure, so
+    ``measured_hours`` can differ between the two. Metrics are null when none can be."""
 
     measured_hours: int
     mae_mw: float | None
     bias_mw: float | None
     rmse_mw: float | None
+    p90_abs_error_mw: float | None
+    nmae_percent: float | None
 
 
 class AlignmentSensitivityResponse(BaseModel):
@@ -209,6 +212,8 @@ def _alignment_metrics_response(summary: AccuracySummary) -> AlignmentMetricsRes
         mae_mw=summary.mae_mw,
         bias_mw=summary.bias_mw,
         rmse_mw=summary.rmse_mw,
+        p90_abs_error_mw=summary.p90_abs_error_mw,
+        nmae_percent=summary.nmae_percent,
     )
 
 

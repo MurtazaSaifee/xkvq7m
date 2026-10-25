@@ -130,8 +130,9 @@ export interface components {
         };
         /**
          * AlignmentMetricsResponse
-         * @description Headline metrics under one alignment rule, in MW. Each side counts the hours its own rule can
-         *     measure, so ``measured_hours`` can differ between the two. Metrics are null when none can be.
+         * @description The headline metrics under one alignment rule, with the same names and definitions as the
+         *     summary, in MW unless stated. Each side counts the hours its own rule can measure, so
+         *     ``measured_hours`` can differ between the two. Metrics are null when none can be.
          */
         AlignmentMetricsResponse: {
             /** Measured Hours */
@@ -142,6 +143,10 @@ export interface components {
             bias_mw: number | null;
             /** Rmse Mw */
             rmse_mw: number | null;
+            /** P90 Abs Error Mw */
+            p90_abs_error_mw: number | null;
+            /** Nmae Percent */
+            nmae_percent: number | null;
         };
         /**
          * AlignmentSensitivityResponse
@@ -462,6 +467,60 @@ export interface operations {
                     "application/json": components["schemas"]["MetaResponse"];
                 };
             };
+            /** @description Unexpected server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /**
+                         * Type
+                         * @default about:blank
+                         */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance: string;
+                        /** Errors */
+                        errors?: {
+                            [key: string]: unknown;
+                        }[] | null;
+                    };
+                };
+            };
+            /** @description The data snapshot is not available */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /**
+                         * Type
+                         * @default about:blank
+                         */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance: string;
+                        /** Errors */
+                        errors?: {
+                            [key: string]: unknown;
+                        }[] | null;
+                    };
+                };
+            };
         };
     };
     decision_snapshot_api_v1_decision_snapshot_get: {
@@ -487,8 +546,35 @@ export interface operations {
                     "application/json": components["schemas"]["DecisionSnapshotResponse"];
                 };
             };
-            /** @description Invalid or out-of-range parameters */
+            /** @description Invalid parameters */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /**
+                         * Type
+                         * @default about:blank
+                         */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance: string;
+                        /** Errors */
+                        errors?: {
+                            [key: string]: unknown;
+                        }[] | null;
+                    };
+                };
+            };
+            /** @description Unexpected server error */
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -566,6 +652,33 @@ export interface operations {
             };
             /** @description Invalid parameters */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /**
+                         * Type
+                         * @default about:blank
+                         */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance: string;
+                        /** Errors */
+                        errors?: {
+                            [key: string]: unknown;
+                        }[] | null;
+                    };
+                };
+            };
+            /** @description Unexpected server error */
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };
