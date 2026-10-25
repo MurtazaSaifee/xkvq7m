@@ -20,6 +20,13 @@ from app.domain.accuracy import (
     decision_targets,
     delivery_days_between,
 )
+from app.domain.band import (
+    BAND_LOOKBACK_DAYS,
+    BAND_MIN_HISTORY_DAYS,
+    BandCoverage,
+    build_band_coverage,
+    lookback_days,
+)
 from app.domain.decision import CUTOFF_PATTERN, DEFAULT_CUTOFF, parse_cutoff
 from app.domain.error_grid import ErrorGrid, build_error_grid
 from app.domain.horizon import HorizonCurve, HorizonRange, error_by_horizon
@@ -69,6 +76,21 @@ class ErrorBinResponse(BaseModel):
 class ErrorHistogramResponse(BaseModel):
     bin_width_mw: int
     bins: list[ErrorBinResponse]
+
+
+class BandCoverageResponse(BaseModel):
+    """How often the actual fell inside its expected-error band over the scope. Hours are counted
+    when they have a decision forecast, an actual and a band. The four counts add up to
+    ``target_hours`` of the scope, and the coverage is null when no hour is counted."""
+
+    lookback_days: int
+    min_history_days: int
+    counted_hours: int
+    inside_hours: int
+    coverage_percent: float | None
+    excluded_no_band: int
+    excluded_no_decision_forecast: int
+    excluded_no_actual: int
 
 
 class HeatmapCellResponse(BaseModel):
@@ -127,9 +149,23 @@ class AccuracyResponse(BaseModel):
     delivery_days: DeliveryDayRangeResponse
     summary: AccuracySummaryResponse
     histogram: ErrorHistogramResponse
+    band_coverage: BandCoverageResponse
     heatmap: ErrorHeatmapResponse
     worst_days: list[WorstDayResponse]
     horizon_curve: HorizonCurveResponse
+
+
+def _band_coverage_response(coverage: BandCoverage) -> BandCoverageResponse:
+    return BandCoverageResponse(
+        lookback_days=BAND_LOOKBACK_DAYS,
+        min_history_days=BAND_MIN_HISTORY_DAYS,
+        counted_hours=coverage.counted_hours,
+        inside_hours=coverage.inside_hours,
+        coverage_percent=coverage.coverage_percent,
+        excluded_no_band=coverage.excluded_no_band,
+        excluded_no_decision_forecast=coverage.excluded_no_decision_forecast,
+        excluded_no_actual=coverage.excluded_no_actual,
+    )
 
 
 def _horizon_range_to_response(decision_range: HorizonRange | None) -> HorizonRangeResponse | None:
@@ -158,7 +194,7 @@ def _horizon_to_response(curve: HorizonCurve) -> HorizonCurveResponse:
 
 
 def _to_response(
-    report: AccuracyReport, grid: ErrorGrid, horizon: HorizonCurve
+    report: AccuracyReport, grid: ErrorGrid, horizon: HorizonCurve, coverage: BandCoverage
 ) -> AccuracyResponse:
     summary = report.summary
     return AccuracyResponse(
@@ -183,6 +219,7 @@ def _to_response(
                 for b in report.histogram
             ],
         ),
+        band_coverage=_band_coverage_response(coverage),
         heatmap=ErrorHeatmapResponse(
             cells=[
                 HeatmapCellResponse(
@@ -233,6 +270,12 @@ def accuracy(
         forecasts = repository.decision_forecasts_at(decision_targets(days, cutoff_time))
         actuals = repository.actuals_between(window_start, window_end)
         all_forecasts = repository.forecasts_between(window_start, window_end)
+        # The band's warm-up is the lookback of the first scope day, so those days are read too.
+        # Only the band coverage uses them. The other figures still cover only the scope days.
+        history = delivery_days_between(lookback_days(first_day)[0], last_day)
+        history_start, history_end = accuracy_window(history)
+        band_forecasts = repository.decision_forecasts_at(decision_targets(history, cutoff_time))
+        band_actuals = repository.actuals_between(history_start, history_end)
     except SnapshotUnavailableError as error:
         raise ProblemError(
             503, "Service Unavailable", "Data snapshot is not available", ABOUT_BLANK
@@ -243,4 +286,5 @@ def accuracy(
     horizon = error_by_horizon(
         window_start, window_end, all_forecasts, actuals, decision_forecasts=forecasts
     )
-    return _to_response(report, grid, horizon)
+    coverage = build_band_coverage(days, cutoff_time, band_forecasts, band_actuals)
+    return _to_response(report, grid, horizon, coverage)

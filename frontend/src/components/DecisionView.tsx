@@ -12,7 +12,7 @@ import { DeliveryDayPicker } from "./DeliveryDayPicker";
 import { EChart } from "./EChart";
 import { KpiTiles } from "./KpiTiles";
 
-function Legend() {
+function Legend({ hasBand }: { hasBand: boolean }) {
   return (
     <ul className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted">
       <li className="flex items-center gap-2">
@@ -27,6 +27,12 @@ function Legend() {
         <span aria-hidden="true" className="h-px w-6" style={{ backgroundColor: CHART_COLORS.actual }} />
         Actual generation, half-hourly
       </li>
+      {hasBand ? (
+        <li className="flex items-center gap-2">
+          <span aria-hidden="true" className="h-3 w-6" style={{ backgroundColor: CHART_COLORS.band }} />
+          Expected-error band, from past forecast errors
+        </li>
+      ) : null}
     </ul>
   );
 }
@@ -138,11 +144,17 @@ export function DecisionView() {
       ) : null}
 
       <div className="space-y-3">
-        <Legend />
+        <Legend hasBand={data.band !== null} />
         <EChart
           option={option}
           label={`Decision forecast against actual wind generation for ${formatDay(data.delivery_day)}`}
         />
+        {data.band === null ? (
+          <p className="text-sm text-muted">
+            No expected-error band for this day: too few past days have measured errors at this
+            cutoff.
+          </p>
+        ) : null}
       </div>
 
       <p className="text-sm text-muted">

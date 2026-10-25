@@ -83,6 +83,7 @@ export interface components {
             delivery_days: components["schemas"]["DeliveryDayRangeResponse"];
             summary: components["schemas"]["AccuracySummaryResponse"];
             histogram: components["schemas"]["ErrorHistogramResponse"];
+            band_coverage: components["schemas"]["BandCoverageResponse"];
             heatmap: components["schemas"]["ErrorHeatmapResponse"];
             /** Worst Days */
             worst_days: components["schemas"]["WorstDayResponse"][];
@@ -126,6 +127,30 @@ export interface components {
             /** Generation Mw */
             generation_mw: number | null;
         };
+        /**
+         * BandCoverageResponse
+         * @description How often the actual fell inside its expected-error band over the scope. Hours are counted
+         *     when they have a decision forecast, an actual and a band. The four counts add up to
+         *     ``target_hours`` of the scope, and the coverage is null when no hour is counted.
+         */
+        BandCoverageResponse: {
+            /** Lookback Days */
+            lookback_days: number;
+            /** Min History Days */
+            min_history_days: number;
+            /** Counted Hours */
+            counted_hours: number;
+            /** Inside Hours */
+            inside_hours: number;
+            /** Coverage Percent */
+            coverage_percent: number | null;
+            /** Excluded No Band */
+            excluded_no_band: number;
+            /** Excluded No Decision Forecast */
+            excluded_no_decision_forecast: number;
+            /** Excluded No Actual */
+            excluded_no_actual: number;
+        };
         /** DecisionSnapshotResponse */
         DecisionSnapshotResponse: {
             /**
@@ -152,6 +177,7 @@ export interface components {
             /** Actuals */
             actuals: components["schemas"]["ActualResponse"][];
             kpis: components["schemas"]["KpisResponse"];
+            band: components["schemas"]["ExpectedErrorBandResponse"] | null;
         };
         /** DeliveryDayRangeResponse */
         DeliveryDayRangeResponse: {
@@ -202,6 +228,20 @@ export interface components {
             bin_width_mw: number;
             /** Bins */
             bins: components["schemas"]["ErrorBinResponse"][];
+        };
+        /**
+         * ExpectedErrorBandResponse
+         * @description The band for the delivery day: P10 and P90 of the hourly decision-forecast errors (forecast
+         *     minus actual, MW) over the 14 delivery days that end two days before it (D-15 to D-2), at the
+         *     same cutoff. A band needs at least 7 of those days with measured errors.
+         */
+        ExpectedErrorBandResponse: {
+            /** Lower Error Mw */
+            lower_error_mw: number;
+            /** Upper Error Mw */
+            upper_error_mw: number;
+            /** History Days */
+            history_days: number;
         };
         /** HealthResponse */
         HealthResponse: {
@@ -268,6 +308,9 @@ export interface components {
         /**
          * HourResponse
          * @description One delivery hour: decision forecast, aligned actual and forecast error, all in MW.
+         *
+         *     The band range is where the actual is expected to fall, given the decision forecast. It is null
+         *     when the hour has no decision forecast, or the day has no expected-error band.
          */
         HourResponse: {
             /**
@@ -283,6 +326,10 @@ export interface components {
             actual_mw: number | null;
             /** Error Mw */
             error_mw: number | null;
+            /** Band Low Mw */
+            band_low_mw: number | null;
+            /** Band High Mw */
+            band_high_mw: number | null;
         };
         /** KpisResponse */
         KpisResponse: {

@@ -39,6 +39,16 @@ const ACCURACY: AccuracyResponse = {
       { lower_mw: 0, upper_mw: 500, count: 4 },
     ],
   },
+  band_coverage: {
+    lookback_days: 14,
+    min_history_days: 7,
+    counted_hours: 744,
+    inside_hours: 597,
+    coverage_percent: 80.24,
+    excluded_no_band: 0,
+    excluded_no_decision_forecast: 0,
+    excluded_no_actual: 0,
+  },
   heatmap: { cells: [] },
   worst_days: [],
   horizon_curve: {
@@ -128,6 +138,49 @@ describe("AccuracyView", () => {
     expect(
       screen.getByText("Left out: 0 hours with no decision forecast and 2 hours with no actual."),
     ).toBeInTheDocument();
+  });
+
+  it("reports band coverage as a tile with the hours counted and a plain explanation", async () => {
+    stubAccuracy(() => jsonResponse(ACCURACY));
+
+    renderView();
+
+    const coverage = await screen.findByRole("group", { name: "Band coverage" });
+    expect(within(coverage).getByText("80.2%")).toBeInTheDocument();
+    expect(
+      within(coverage).getByText(
+        "Hours whose actual generation fell inside the expected-error band. The target is about 80%.",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.getByText("Counted 744 hours: 597 inside the band and 147 outside it."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Each day's band is the P10 to P90 of the forecast errors over the 14 delivery days that end two days before it, at this cutoff. It uses no error from the day before it or any later day.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("says when no hour has a band to measure against, and shows a dash", async () => {
+    stubAccuracy(() =>
+      jsonResponse({
+        ...ACCURACY,
+        band_coverage: {
+          ...ACCURACY.band_coverage,
+          counted_hours: 0,
+          inside_hours: 0,
+          coverage_percent: null,
+          excluded_no_band: 744,
+        },
+      }),
+    );
+
+    renderView();
+
+    const coverage = await screen.findByRole("group", { name: "Band coverage" });
+    expect(within(coverage).getByText("—")).toBeInTheDocument();
+    expect(within(coverage).getByText("No hour has a band to measure against")).toBeVisible();
   });
 
   it("feeds the error histogram the bin counts from the response", async () => {

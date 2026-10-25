@@ -40,9 +40,9 @@ Guiding rule: **simple, finished completely, under budget** (free tiers only).
 - **Alignment:** metrics are computed on the forecast's hourly grid. The actual for hour *h* is the mean of the half-hours starting at *h*:00 and *h*:30.
   - Sensitivity check: also compute the metrics comparing at *h*:00 only, and report the difference in the README.
 - **Forecast error:** forecast − actual, in MW. Positive means wind was over-forecast.
-- **Expected-error band:** for delivery day D, take the P10/P90 of decision-forecast errors over the 14 delivery days before D (walk-forward, so no lookahead). Report band coverage, with a target of about 80%.
+- **Expected-error band:** for delivery day D, take the P10/P90 of decision-forecast errors over the 14 delivery days ending two days before D (D-15 … D-2), all known at the decision cutoff (walk-forward, so no lookahead). Report band coverage, with a target of about 80%.
   - Next step, for the video only: condition the band on forecast level.
-- **Ingestion window:** WINDFOR publish times from 2025-12-18T00:00Z to 2026-02-01T23:59Z, and FUELHH settlement dates 2025-12-19 to 2026-02-01 inclusive. This covers the band's 14-day warm-up (delivery days 19 Dec to 1 Jan) and every forecast for target times up to the end of 1 Feb.
+- **Ingestion window:** WINDFOR publish times from 2025-12-18T00:00Z to 2026-02-01T23:59Z, and FUELHH settlement dates 2025-12-19 to 2026-02-01 inclusive. This covers the band's warm-up (delivery days 19 Dec to 31 Dec, since the band reads up to two days back) and every forecast for target times up to the end of 1 Feb.
 - **Missing decision forecasts:** a run published on day P covers 21:00Z P-1 to 21:00Z P+2. A cutoff before 02:30 on the decision day leaves 22:00 and 23:00 of the delivery day without a decision forecast. These are shown as gaps and excluded from the metrics, with the count reported.
 
 ## Architecture

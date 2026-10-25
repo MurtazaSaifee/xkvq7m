@@ -23,3 +23,22 @@ export function forecastSteps(hours: DecisionHour[]): Point[] {
 export function actualPoints(actuals: HalfHourActual[]): Point[] {
   return actuals.map((actual): Point => [Date.parse(actual.target_time), actual.generation_mw]);
 }
+
+/** One hour's expected-error band: the hour's span in epoch milliseconds, and its MW edges. */
+export interface BandArea {
+  start: number;
+  end: number;
+  low: number;
+  high: number;
+}
+
+/** The shaded band for each hour that has a band range. Hours without one are left out. */
+export function bandAreas(hours: DecisionHour[]): BandArea[] {
+  return hours.flatMap((hour): BandArea[] => {
+    if (hour.band_low_mw === null || hour.band_high_mw === null) {
+      return [];
+    }
+    const start = Date.parse(hour.target_time);
+    return [{ start, end: start + HOUR_MS, low: hour.band_low_mw, high: hour.band_high_mw }];
+  });
+}

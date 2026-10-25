@@ -6,11 +6,12 @@ import type {
 
 import type { DecisionSnapshot } from "../api/client";
 import { formatMwh, formatUkTime } from "../format";
-import { actualPoints, forecastSteps, type Point } from "./series";
+import { actualPoints, bandAreas, forecastSteps, type Point } from "./series";
 
 export const CHART_COLORS = {
   forecast: "#2F6690",
   actual: "#1C2330",
+  band: "rgba(47, 102, 144, 0.16)",
   rule: "#E2E2DC",
   muted: "#5B6372",
 } as const;
@@ -83,6 +84,16 @@ export function buildChartOption(snapshot: DecisionSnapshot, reduceMotion: boole
         connectNulls: false,
         lineStyle: { width: 2.5, color: CHART_COLORS.forecast },
         itemStyle: { color: CHART_COLORS.forecast },
+        // The expected-error band, one shaded hour per hour that has a band range. It is drawn
+        // from the decision forecast's series, so the band shares its hourly steps.
+        markArea: {
+          silent: true,
+          itemStyle: { color: CHART_COLORS.band },
+          data: bandAreas(snapshot.hours).map((area) => [
+            { xAxis: area.start, yAxis: area.high },
+            { xAxis: area.end, yAxis: area.low },
+          ]),
+        },
         z: 2,
       },
       {
