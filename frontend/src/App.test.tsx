@@ -1,8 +1,29 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
+
+// The charts need a canvas, which jsdom does not provide.
+vi.mock("./components/EChart", () => ({ EChart: () => null }));
+
+const ACCURACY = {
+  cutoff: "09:20",
+  delivery_days: { first: "2026-01-02", last: "2026-02-01" },
+  summary: {
+    target_hours: 744,
+    measured_hours: 744,
+    excluded_no_decision_forecast: 0,
+    excluded_no_actual: 0,
+    mae_mw: 2038.9,
+    bias_mw: 1747.9,
+    rmse_mw: 2504.8,
+    p90_abs_error_mw: 4097.9,
+    mean_actual_mw: 11283.6,
+    nmae_percent: 18.07,
+  },
+  histogram: { bin_width_mw: 500, bins: [] },
+};
 
 const META = {
   ingested_at: "2026-10-25T04:45:25Z",
@@ -101,5 +122,57 @@ describe("App", () => {
     renderApp();
 
     expect(await screen.findByText("Data coverage unavailable")).toBeInTheDocument();
+  });
+
+  it("opens on the Decision view, and the Accuracy tab switches to the accuracy figures", async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = new URL(String(input), "http://localhost");
+      if (url.pathname === "/api/v1/accuracy") {
+        return Promise.resolve(jsonResponse(ACCURACY));
+      }
+      if (url.pathname === "/api/v1/decision-snapshot") {
+        return Promise.resolve(jsonResponse({ detail: "not under test" }, 503));
+      }
+      if (url.pathname === "/api/v1/meta") {
+        return metaOk();
+      }
+      return healthy();
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    window.history.replaceState(null, "", "/");
+
+    renderApp();
+
+    expect(await screen.findByRole("link", { name: "Accuracy" })).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Average miss (MAE)" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("link", { name: "Accuracy" }));
+
+    expect(await screen.findByRole("group", { name: "Average miss (MAE)" })).toBeInTheDocument();
+    expect(new URLSearchParams(window.location.search).get("view")).toBe("accuracy");
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/accuracy?cutoff=09%3A20", expect.anything());
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("opens straight on the Accuracy view when the URL names it, keeping the shared cutoff", async () => {
+    window.history.replaceState(null, "", "/?view=accuracy&cutoff=14:30");
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = new URL(String(input), "http://localhost");
+      if (url.pathname === "/api/v1/accuracy") {
+        return Promise.resolve(jsonResponse({ ...ACCURACY, cutoff: "14:30" }));
+      }
+      if (url.pathname === "/api/v1/meta") {
+        return metaOk();
+      }
+      return healthy();
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderApp();
+
+    expect(await screen.findByRole("group", { name: "Average miss (MAE)" })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/accuracy?cutoff=14%3A30", expect.anything());
+    expect(new URLSearchParams(window.location.search).get("cutoff")).toBe("14:30");
+    window.history.replaceState(null, "", "/");
   });
 });
