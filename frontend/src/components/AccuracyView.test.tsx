@@ -39,7 +39,20 @@ const ACCURACY: AccuracyResponse = {
       { lower_mw: 0, upper_mw: 500, count: 4 },
     ],
   },
+  horizon_curve: {
+    buckets: [
+      { lower_hours: 0, upper_hours: 1, mae_mw: 1500, bias_mw: 1200, sample_count: 248 },
+      { lower_hours: 1, upper_hours: 2, mae_mw: null, bias_mw: null, sample_count: 0 },
+      { lower_hours: 2, upper_hours: 3, mae_mw: 1800, bias_mw: -400, sample_count: 1 },
+    ],
+    excluded_no_actual: 2,
+    decision_horizon_range_hours: { min_hours: 1.5, max_hours: 2.5 },
+  },
 };
+
+function chartLabelled(prefix: string) {
+  return charts.filter((chart) => chart.label.startsWith(prefix)).at(-1);
+}
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -121,10 +134,32 @@ describe("AccuracyView", () => {
     renderView();
 
     await screen.findByRole("group", { name: "Average miss (MAE)" });
-    const chart = charts.at(-1);
+    const chart = chartLabelled("Histogram of forecast error");
     expect(chart?.label).toBe("Histogram of forecast error, 2 Jan to 1 Feb 2026, at the 09:20 cutoff");
     const series = (chart?.option.series as unknown as { data: { value: number }[] }[])[0];
     expect(series?.data.map((bar) => bar.value)).toEqual([3, 4]);
+  });
+
+  it("shows the error-by-horizon curve with the cutoff's decision range, from the response", async () => {
+    stubAccuracy(() => jsonResponse(ACCURACY));
+
+    renderView();
+
+    await screen.findByRole("group", { name: "Average miss (MAE)" });
+    expect(screen.getByRole("heading", { name: "Error by forecast horizon" })).toBeInTheDocument();
+    expect(
+      screen.getByText(/shaded band marks the horizons of the decision forecasts at the 09:20 cutoff, 1\.5 to 2\.5 hours/),
+    ).toBeInTheDocument();
+    const chart = chartLabelled("Forecast error by horizon");
+    expect(chart?.label).toContain("09:20 cutoff");
+    const mae = (chart?.option.series as unknown as { name: string; data: unknown[] }[])[0];
+    expect(mae?.name).toBe("MAE");
+    expect(mae?.data).toEqual([
+      [0.5, 1500],
+      [1.5, null],
+      [2.5, 1800],
+    ]);
+    expect(screen.getByText("2 forecasts are left out because their hour has no actual.")).toBeVisible();
   });
 
   it("asks for the accuracy at the cutoff named in the URL, so the view respects the shared cutoff", async () => {

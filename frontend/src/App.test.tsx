@@ -23,6 +23,7 @@ const ACCURACY = {
     nmae_percent: 18.07,
   },
   histogram: { bin_width_mw: 500, bins: [] },
+  horizon_curve: { buckets: [], excluded_no_actual: 0, decision_horizon_range_hours: null },
 };
 
 const META = {

@@ -4,6 +4,7 @@ import { formatDayRange } from "../format";
 import { CutoffPicker } from "./CutoffPicker";
 import { ErrorHistogram } from "./accuracy/ErrorHistogram";
 import { HeadlineMetrics } from "./accuracy/HeadlineMetrics";
+import { HorizonCurve } from "./accuracy/HorizonCurve";
 
 /**
  * The Accuracy view: how accurate the decision forecasts were across every delivery day in scope,
@@ -57,6 +58,8 @@ export function AccuracyView() {
         cutoff={data.cutoff}
         deliveryDays={data.delivery_days}
       />
+
+      <HorizonCurve curve={data.horizon_curve} cutoff={data.cutoff} />
     </section>
   );
 }
