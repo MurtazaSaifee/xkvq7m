@@ -46,6 +46,25 @@ async def test_meta_is_503_when_there_is_no_snapshot(
     assert response.status_code == 503
 
 
+async def test_meta_without_a_snapshot_answers_the_shared_503_problem(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setenv(SNAPSHOT_PATH_ENV, str(tmp_path / "absent.duckdb"))
+    transport = httpx.ASGITransport(app=create_app())
+
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/api/v1/meta")
+
+    assert response.headers["content-type"].startswith("application/problem+json")
+    assert response.json() == {
+        "type": "about:blank",
+        "title": "Service Unavailable",
+        "status": 503,
+        "detail": "Data snapshot is not available",
+        "instance": "/api/v1/meta",
+    }
+
+
 async def test_openapi_documents_the_meta_route():
     transport = httpx.ASGITransport(app=create_app())
 

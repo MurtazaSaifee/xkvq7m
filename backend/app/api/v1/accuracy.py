@@ -1,16 +1,10 @@
 from datetime import date
-from typing import Annotated, Any
+from typing import Annotated
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
-from app.api.problems import (
-    ABOUT_BLANK,
-    INVALID_PARAMETER,
-    PROBLEM_MEDIA_TYPE,
-    ProblemDetail,
-    ProblemError,
-)
+from app.api.problems import PROBLEM_RESPONSES, invalid_cutoff, snapshot_unavailable
 from app.core.config import snapshot_path
 from app.domain.accuracy import (
     ERROR_BIN_WIDTH_MW,
@@ -36,14 +30,6 @@ from app.domain.horizon import HorizonCurve, HorizonRange, error_by_horizon
 from app.repository.snapshot import SnapshotRepository, SnapshotUnavailableError
 
 router = APIRouter()
-
-_PROBLEM_CONTENT: dict[str, Any] = {
-    PROBLEM_MEDIA_TYPE: {"schema": ProblemDetail.model_json_schema()}
-}
-_PROBLEM_RESPONSES: dict[int | str, dict[str, Any]] = {
-    422: {"description": "Invalid parameters", "content": _PROBLEM_CONTENT},
-    503: {"description": "The data snapshot is not available", "content": _PROBLEM_CONTENT},
-}
 
 
 class DeliveryDayRangeResponse(BaseModel):
@@ -293,7 +279,7 @@ def _to_response(
     "/accuracy",
     response_model=AccuracyResponse,
     summary="Accuracy of decision forecasts over the scope, with an error histogram",
-    responses=_PROBLEM_RESPONSES,
+    responses=PROBLEM_RESPONSES,
 )
 def accuracy(
     cutoff: Annotated[
@@ -307,7 +293,7 @@ def accuracy(
     try:
         cutoff_time = parse_cutoff(cutoff)
     except ValueError as error:
-        raise ProblemError(422, "Invalid request", str(error), INVALID_PARAMETER) from error
+        raise invalid_cutoff(error) from error
 
     try:
         repository = SnapshotRepository(snapshot_path())
@@ -324,9 +310,7 @@ def accuracy(
         band_forecasts = repository.decision_forecasts_at(decision_targets(history, cutoff_time))
         band_actuals = repository.actuals_between(history_start, history_end)
     except SnapshotUnavailableError as error:
-        raise ProblemError(
-            503, "Service Unavailable", "Data snapshot is not available", ABOUT_BLANK
-        ) from error
+        raise snapshot_unavailable() from error
 
     report = build_accuracy_report(days, cutoff_time, forecasts, actuals)
     grid = build_error_grid(days, cutoff_time, forecasts, actuals)

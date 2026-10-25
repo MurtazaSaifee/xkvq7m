@@ -1,8 +1,9 @@
 from datetime import date
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import AwareDatetime, BaseModel
 
+from app.api.problems import SNAPSHOT_PROBLEM_RESPONSES, snapshot_unavailable
 from app.core.config import snapshot_path
 from app.repository.snapshot import SnapshotCoverage, SnapshotRepository, SnapshotUnavailableError
 
@@ -50,11 +51,14 @@ def _to_response(coverage: SnapshotCoverage) -> MetaResponse:
 
 
 @router.get(
-    "/meta", response_model=MetaResponse, summary="Snapshot coverage and ingestion metadata"
+    "/meta",
+    response_model=MetaResponse,
+    summary="Snapshot coverage and ingestion metadata",
+    responses=SNAPSHOT_PROBLEM_RESPONSES,
 )
 def meta() -> MetaResponse:
     try:
         coverage = SnapshotRepository(snapshot_path()).coverage()
     except SnapshotUnavailableError as error:
-        raise HTTPException(status_code=503, detail="Data snapshot is not available") from error
+        raise snapshot_unavailable() from error
     return _to_response(coverage)

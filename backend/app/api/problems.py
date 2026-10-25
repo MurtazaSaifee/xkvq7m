@@ -54,6 +54,50 @@ class ProblemDetail(BaseModel):
     errors: list[dict[str, Any]] | None = None
 
 
+SNAPSHOT_UNAVAILABLE_DETAIL = "Data snapshot is not available"
+
+# The OpenAPI entries for a problem response. Routes share them so the documented shape is one.
+_PROBLEM_CONTENT: dict[str, Any] = {
+    PROBLEM_MEDIA_TYPE: {"schema": ProblemDetail.model_json_schema()}
+}
+_INVALID_PARAMETERS_RESPONSE: dict[int | str, dict[str, Any]] = {
+    422: {"description": "Invalid parameters", "content": _PROBLEM_CONTENT},
+}
+_SNAPSHOT_UNAVAILABLE_RESPONSE: dict[int | str, dict[str, Any]] = {
+    503: {"description": "The data snapshot is not available", "content": _PROBLEM_CONTENT},
+}
+_UNEXPECTED_ERROR_RESPONSE: dict[int | str, dict[str, Any]] = {
+    500: {"description": "Unexpected server error", "content": _PROBLEM_CONTENT},
+}
+# For a route with query parameters that also needs the snapshot.
+PROBLEM_RESPONSES: dict[int | str, dict[str, Any]] = {
+    **_INVALID_PARAMETERS_RESPONSE,
+    **_SNAPSHOT_UNAVAILABLE_RESPONSE,
+    **_UNEXPECTED_ERROR_RESPONSE,
+}
+# For a route that needs the snapshot but takes no parameters.
+SNAPSHOT_PROBLEM_RESPONSES: dict[int | str, dict[str, Any]] = {
+    **_SNAPSHOT_UNAVAILABLE_RESPONSE,
+    **_UNEXPECTED_ERROR_RESPONSE,
+}
+
+
+def snapshot_unavailable() -> ProblemError:
+    """The problem for a route that needs the data snapshot when there is none to read."""
+    return ProblemError(
+        HTTPStatus.SERVICE_UNAVAILABLE,
+        HTTPStatus.SERVICE_UNAVAILABLE.phrase,
+        SNAPSHOT_UNAVAILABLE_DETAIL,
+    )
+
+
+def invalid_cutoff(error: ValueError) -> ProblemError:
+    """The problem for a cutoff that is not a valid HH:MM time."""
+    return ProblemError(
+        HTTPStatus.UNPROCESSABLE_ENTITY, "Invalid request", str(error), INVALID_PARAMETER
+    )
+
+
 def _problem_response(
     request: Request,
     status: int,
