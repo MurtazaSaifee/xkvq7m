@@ -44,6 +44,9 @@ function tooltip(params: TopLevelFormatterParams): string {
 export function buildChartOption(snapshot: DecisionSnapshot, reduceMotion: boolean): EChartsOption {
   return {
     animation: !reduceMotion,
+    // Time ticks are placed in UTC. Otherwise ECharts places them in the viewer's zone, so a viewer
+    // at UTC+05:30 would see ticks at 02:30 and 06:30. The labels are UK time from ukTimeOf.
+    useUTC: true,
     grid: { left: 64, right: 24, top: 24, bottom: 84 },
     tooltip: { trigger: "axis", formatter: tooltip },
     xAxis: {

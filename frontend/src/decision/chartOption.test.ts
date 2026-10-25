@@ -108,4 +108,11 @@ describe("buildChartOption", () => {
 
     expect(forecast?.markArea?.data ?? []).toEqual([]);
   });
+
+  it("reads the time axis in UTC, so ticks sit on whole UK hours for any viewer's zone", () => {
+    const option = buildChartOption(SNAPSHOT, true) as { useUTC?: boolean; xAxis: { type: string } };
+
+    expect(option.xAxis.type).toBe("time");
+    expect(option.useUTC).toBe(true);
+  });
 });
