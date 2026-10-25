@@ -3,6 +3,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { DecisionSnapshot } from "../api/client";
+import { DecisionCutoffProvider } from "./DecisionCutoffProvider";
 import { DecisionView } from "./DecisionView";
 
 // The chart needs a canvas, which jsdom does not provide. Its option is tested separately.
@@ -52,9 +53,12 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-/** Routes the two API paths. The snapshot handler receives the requested delivery day. */
+/**
+ * Routes the two API paths. The snapshot handler receives the requested delivery day and cutoff,
+ * so a test can answer each cutoff differently.
+ */
 function stubApi(handlers: {
-  snapshot: (deliveryDay: string | null) => Response;
+  snapshot: (deliveryDay: string | null, cutoff: string | null) => Response;
 }) {
   const fetchMock = vi.fn((input: RequestInfo | URL) => {
     const url = new URL(String(input), "http://localhost");
@@ -62,7 +66,9 @@ function stubApi(handlers: {
       return Promise.resolve(jsonResponse(META));
     }
     if (url.pathname === "/api/v1/decision-snapshot") {
-      return Promise.resolve(handlers.snapshot(url.searchParams.get("delivery_day")));
+      return Promise.resolve(
+        handlers.snapshot(url.searchParams.get("delivery_day"), url.searchParams.get("cutoff")),
+      );
     }
     return Promise.reject(new Error(`unexpected request to ${url.pathname}`));
   });
@@ -74,7 +80,9 @@ function renderView() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
-      <DecisionView />
+      <DecisionCutoffProvider>
+        <DecisionView />
+      </DecisionCutoffProvider>
     </QueryClientProvider>,
   );
 }
@@ -82,6 +90,7 @@ function renderView() {
 describe("DecisionView", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    window.history.replaceState(null, "", "/");
   });
 
   it("opens on the latest delivery day and says what the trader is looking at", async () => {
@@ -178,5 +187,75 @@ describe("DecisionView", () => {
     ).toBeVisible();
     const error = screen.getByRole("group", { name: "Forecast error" });
     expect(within(error).getByText("—")).toBeInTheDocument();
+  });
+
+  it("a later cutoff reloads the snapshot at that cutoff and names the later run it used", async () => {
+    const fetchMock = stubApi({
+      snapshot: (day, cutoff) =>
+        jsonResponse(
+          snapshotFor(day ?? "", {
+            cutoff: cutoff ?? "",
+            forecast_run_publish_time:
+              cutoff === "09:50" ? "2026-01-31T09:30:00Z" : "2026-01-31T07:30:00Z",
+          }),
+        ),
+    });
+    renderView();
+    await screen.findByRole("heading", { name: /as known at 09:20/ });
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Decision cutoff" }), {
+      target: { value: "09:50" },
+    });
+
+    expect(
+      await screen.findByRole("heading", {
+        name: "Wind outlook for 1 Feb as known at 09:50 on 31 Jan (09:30 run)",
+      }),
+    ).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/decision-snapshot?delivery_day=2026-02-01&cutoff=09%3A50",
+      expect.anything(),
+    );
+  });
+
+  it("a cutoff before the 02:30 run leaves 22:00 and 23:00 without a decision forecast", async () => {
+    stubApi({
+      snapshot: (day, cutoff) =>
+        jsonResponse(
+          cutoff === "01:00"
+            ? snapshotFor(day ?? "", {
+                cutoff: "01:00",
+                forecast_run_publish_time: "2026-01-30T22:30:00Z",
+                // Only 20:00 and 21:00 have a decision forecast from the 22:30 run.
+                kpis: {
+                  forecast_mwh: 30800,
+                  actual_mwh: 30000,
+                  error_mwh: 800,
+                  paired_hours: 2,
+                  missing_forecast_hours: 22,
+                  missing_actual_hours: 0,
+                },
+              })
+            : snapshotFor(day ?? ""),
+        ),
+    });
+    renderView();
+    await screen.findByRole("heading", { name: /as known at 09:20/ });
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Decision cutoff" }), {
+      target: { value: "custom" },
+    });
+    fireEvent.change(screen.getByLabelText("Custom cutoff time"), {
+      target: { value: "01:00" },
+    });
+
+    expect(
+      await screen.findByRole("heading", {
+        name: "Wind outlook for 1 Feb as known at 01:00 on 31 Jan (22:30 run)",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Left out: 22 hours without a decision forecast."),
+    ).toBeInTheDocument();
   });
 });
