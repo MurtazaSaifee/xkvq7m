@@ -86,7 +86,8 @@ def _api(path: Path, monkeypatch: pytest.MonkeyPatch) -> httpx.AsyncClient:
 def band_api(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> httpx.AsyncClient:
     """Forecasts and actuals from 19 Dec, the first day the snapshot holds.
 
-    Every scope day has a band. 2 Jan reads 19 to 31 Dec, which is 13 days, because 18 Dec has no data.
+    Every scope day has a band. 2 Jan reads 19 to 31 Dec, which is 13 days, because 18 Dec has
+    no data.
     """
     return _api(_write_band_snapshot(tmp_path / "band.duckdb", WARM_UP_FIRST), monkeypatch)
 
