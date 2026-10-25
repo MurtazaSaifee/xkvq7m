@@ -1,7 +1,7 @@
 import json
 import logging
 
-from app.core.logging import JsonFormatter
+from app.core.logging import JsonFormatter, configure_logging
 from app.core.request_context import bind_request_id
 
 
@@ -43,3 +43,10 @@ def test_request_id_is_null_outside_a_request():
     payload = json.loads(JsonFormatter().format(_record("startup")))
 
     assert payload["request_id"] is None
+
+
+def test_uvicorn_access_log_is_silenced_in_favour_of_app_access_log():
+    configure_logging()
+
+    assert logging.getLogger("uvicorn.access").getEffectiveLevel() > logging.INFO
+    assert logging.getLogger("uvicorn.error").getEffectiveLevel() <= logging.INFO

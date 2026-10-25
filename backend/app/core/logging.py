@@ -54,3 +54,5 @@ def configure_logging(level: int = logging.INFO) -> None:
         uvicorn_logger = logging.getLogger(name)
         uvicorn_logger.handlers.clear()
         uvicorn_logger.propagate = True
+    # uvicorn's access line duplicates app.access (request ID, duration), so keep only the app's.
+    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
