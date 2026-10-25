@@ -7,6 +7,7 @@
 export const VIEWS = [
   { id: "decision", label: "Decision" },
   { id: "accuracy", label: "Accuracy" },
+  { id: "methodology", label: "Methodology" },
 ] as const;
 
 export type ViewId = (typeof VIEWS)[number]["id"];

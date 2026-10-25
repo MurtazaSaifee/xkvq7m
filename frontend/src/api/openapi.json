@@ -388,6 +388,9 @@
           },
           "horizon_curve": {
             "$ref": "#/components/schemas/HorizonCurveResponse"
+          },
+          "alignment_sensitivity": {
+            "$ref": "#/components/schemas/AlignmentSensitivityResponse"
           }
         },
         "type": "object",
@@ -399,7 +402,8 @@
           "band_coverage",
           "heatmap",
           "worst_days",
-          "horizon_curve"
+          "horizon_curve",
+          "alignment_sensitivity"
         ],
         "title": "AccuracyResponse"
       },
@@ -529,6 +533,73 @@
           "generation_mw"
         ],
         "title": "ActualResponse"
+      },
+      "AlignmentMetricsResponse": {
+        "properties": {
+          "measured_hours": {
+            "type": "integer",
+            "title": "Measured Hours"
+          },
+          "mae_mw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mae Mw"
+          },
+          "bias_mw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bias Mw"
+          },
+          "rmse_mw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rmse Mw"
+          }
+        },
+        "type": "object",
+        "required": [
+          "measured_hours",
+          "mae_mw",
+          "bias_mw",
+          "rmse_mw"
+        ],
+        "title": "AlignmentMetricsResponse",
+        "description": "Headline metrics under one alignment rule, in MW. Each side counts the hours its own rule can\nmeasure, so ``measured_hours`` can differ between the two. Metrics are null when none can be."
+      },
+      "AlignmentSensitivityResponse": {
+        "properties": {
+          "hourly_mean": {
+            "$ref": "#/components/schemas/AlignmentMetricsResponse"
+          },
+          "top_of_hour": {
+            "$ref": "#/components/schemas/AlignmentMetricsResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "hourly_mean",
+          "top_of_hour"
+        ],
+        "title": "AlignmentSensitivityResponse",
+        "description": "The headline metrics under the two alignment rules, over the same decision forecasts.\n\n``hourly_mean`` is the rule the headline figures use: the mean of the two half-hours of each\nhour. ``top_of_hour`` compares each hour with the half-hour starting at h:00 alone."
       },
       "BandCoverageResponse": {
         "properties": {

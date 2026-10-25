@@ -13,6 +13,8 @@ export type HeatmapCell = components["schemas"]["HeatmapCellResponse"];
 export type WorstDay = components["schemas"]["WorstDayResponse"];
 export type HorizonBucket = components["schemas"]["HorizonBucketResponse"];
 export type HorizonRange = components["schemas"]["HorizonRangeResponse"];
+export type AlignmentSensitivity = components["schemas"]["AlignmentSensitivityResponse"];
+export type AlignmentMetrics = components["schemas"]["AlignmentMetricsResponse"];
 
 /** The problem document a route returns for an error (RFC 7807). */
 type ProblemBody = { title?: string; detail?: string };

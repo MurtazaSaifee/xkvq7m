@@ -19,6 +19,15 @@ def hourly_actual(hour_start: datetime, half_hours: Mapping[datetime, float]) ->
     return (first + second) / 2
 
 
+def top_of_hour_actual(hour_start: datetime, half_hours: Mapping[datetime, float]) -> float | None:
+    """The sensitivity rule: the half-hour starting at ``hour_start`` alone, or ``None`` if missing.
+
+    The half-hour past the hour is ignored. This is the comparison behind the alignment check, not
+    the rule used for the headline metrics.
+    """
+    return half_hours.get(hour_start)
+
+
 def forecast_error(forecast_mw: float | None, actual_mw: float | None) -> float | None:
     """Forecast minus actual in MW. Positive means wind was over-forecast."""
     if forecast_mw is None or actual_mw is None:

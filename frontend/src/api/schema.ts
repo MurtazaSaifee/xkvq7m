@@ -88,6 +88,7 @@ export interface components {
             /** Worst Days */
             worst_days: components["schemas"]["WorstDayResponse"][];
             horizon_curve: components["schemas"]["HorizonCurveResponse"];
+            alignment_sensitivity: components["schemas"]["AlignmentSensitivityResponse"];
         };
         /**
          * AccuracySummaryResponse
@@ -126,6 +127,32 @@ export interface components {
             target_time: string;
             /** Generation Mw */
             generation_mw: number | null;
+        };
+        /**
+         * AlignmentMetricsResponse
+         * @description Headline metrics under one alignment rule, in MW. Each side counts the hours its own rule can
+         *     measure, so ``measured_hours`` can differ between the two. Metrics are null when none can be.
+         */
+        AlignmentMetricsResponse: {
+            /** Measured Hours */
+            measured_hours: number;
+            /** Mae Mw */
+            mae_mw: number | null;
+            /** Bias Mw */
+            bias_mw: number | null;
+            /** Rmse Mw */
+            rmse_mw: number | null;
+        };
+        /**
+         * AlignmentSensitivityResponse
+         * @description The headline metrics under the two alignment rules, over the same decision forecasts.
+         *
+         *     ``hourly_mean`` is the rule the headline figures use: the mean of the two half-hours of each
+         *     hour. ``top_of_hour`` compares each hour with the half-hour starting at h:00 alone.
+         */
+        AlignmentSensitivityResponse: {
+            hourly_mean: components["schemas"]["AlignmentMetricsResponse"];
+            top_of_hour: components["schemas"]["AlignmentMetricsResponse"];
         };
         /**
          * BandCoverageResponse

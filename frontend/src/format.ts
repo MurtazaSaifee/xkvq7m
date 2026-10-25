@@ -46,6 +46,11 @@ export function formatSignedMwh(value: number): string {
   return `${sign}${numberFormat.format(Math.abs(rounded))} MWh`;
 }
 
+/** A whole count with a thousands separator, e.g. "5,521". */
+export function formatCount(value: number): string {
+  return numberFormat.format(value);
+}
+
 /** Whole MW with a thousands separator, e.g. "11,284 MW". */
 export function formatMw(value: number): string {
   return `${numberFormat.format(Math.round(value))} MW`;

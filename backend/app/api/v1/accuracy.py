@@ -15,7 +15,10 @@ from app.core.config import snapshot_path
 from app.domain.accuracy import (
     ERROR_BIN_WIDTH_MW,
     AccuracyReport,
+    AccuracySummary,
+    AlignmentSensitivity,
     accuracy_window,
+    alignment_sensitivity,
     build_accuracy_report,
     decision_targets,
     delivery_days_between,
@@ -144,6 +147,26 @@ class HorizonCurveResponse(BaseModel):
     decision_horizon_range_hours: HorizonRangeResponse | None
 
 
+class AlignmentMetricsResponse(BaseModel):
+    """Headline metrics under one alignment rule, in MW. Each side counts the hours its own rule can
+    measure, so ``measured_hours`` can differ between the two. Metrics are null when none can be."""
+
+    measured_hours: int
+    mae_mw: float | None
+    bias_mw: float | None
+    rmse_mw: float | None
+
+
+class AlignmentSensitivityResponse(BaseModel):
+    """The headline metrics under the two alignment rules, over the same decision forecasts.
+
+    ``hourly_mean`` is the rule the headline figures use: the mean of the two half-hours of each
+    hour. ``top_of_hour`` compares each hour with the half-hour starting at h:00 alone."""
+
+    hourly_mean: AlignmentMetricsResponse
+    top_of_hour: AlignmentMetricsResponse
+
+
 class AccuracyResponse(BaseModel):
     cutoff: str
     delivery_days: DeliveryDayRangeResponse
@@ -153,6 +176,7 @@ class AccuracyResponse(BaseModel):
     heatmap: ErrorHeatmapResponse
     worst_days: list[WorstDayResponse]
     horizon_curve: HorizonCurveResponse
+    alignment_sensitivity: AlignmentSensitivityResponse
 
 
 def _band_coverage_response(coverage: BandCoverage) -> BandCoverageResponse:
@@ -193,8 +217,30 @@ def _horizon_to_response(curve: HorizonCurve) -> HorizonCurveResponse:
     )
 
 
+def _alignment_metrics_response(summary: AccuracySummary) -> AlignmentMetricsResponse:
+    return AlignmentMetricsResponse(
+        measured_hours=summary.measured_hours,
+        mae_mw=summary.mae_mw,
+        bias_mw=summary.bias_mw,
+        rmse_mw=summary.rmse_mw,
+    )
+
+
+def _alignment_sensitivity_response(
+    sensitivity: AlignmentSensitivity,
+) -> AlignmentSensitivityResponse:
+    return AlignmentSensitivityResponse(
+        hourly_mean=_alignment_metrics_response(sensitivity.hourly_mean),
+        top_of_hour=_alignment_metrics_response(sensitivity.top_of_hour),
+    )
+
+
 def _to_response(
-    report: AccuracyReport, grid: ErrorGrid, horizon: HorizonCurve, coverage: BandCoverage
+    report: AccuracyReport,
+    grid: ErrorGrid,
+    horizon: HorizonCurve,
+    coverage: BandCoverage,
+    sensitivity: AlignmentSensitivity,
 ) -> AccuracyResponse:
     summary = report.summary
     return AccuracyResponse(
@@ -239,6 +285,7 @@ def _to_response(
             for worst in grid.worst_days
         ],
         horizon_curve=_horizon_to_response(horizon),
+        alignment_sensitivity=_alignment_sensitivity_response(sensitivity),
     )
 
 
@@ -287,4 +334,5 @@ def accuracy(
         window_start, window_end, all_forecasts, actuals, decision_forecasts=forecasts
     )
     coverage = build_band_coverage(days, cutoff_time, band_forecasts, band_actuals)
-    return _to_response(report, grid, horizon, coverage)
+    sensitivity = alignment_sensitivity(days, cutoff_time, forecasts, actuals)
+    return _to_response(report, grid, horizon, coverage, sensitivity)

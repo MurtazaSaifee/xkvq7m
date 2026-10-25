@@ -319,3 +319,32 @@ async def test_the_decision_horizon_range_is_null_when_no_decision_forecast_exis
 
     assert response.status_code == 200
     assert response.json()["horizon_curve"]["decision_horizon_range_hours"] is None
+
+
+# The alignment sensitivity, on the same six measured hours as the summary test. Each hour's
+# decision forecast minus its top-of-hour actual is 1000, -500, 100, 1000, -500 and 500. The hourly
+# mean gives 900, -500, 0, 1000, -500 and 400, so the two rules disagree on three of the six hours.
+
+
+async def test_the_alignment_sensitivity_gives_both_rules_over_the_same_decision_forecasts(
+    api: httpx.AsyncClient,
+):
+    sensitivity = (await _accuracy(api))["alignment_sensitivity"]
+
+    assert set(sensitivity) == {"hourly_mean", "top_of_hour"}
+    hourly = sensitivity["hourly_mean"]
+    assert hourly["measured_hours"] == 6
+    assert hourly["mae_mw"] == pytest.approx(550)
+    assert hourly["bias_mw"] == pytest.approx(1300 / 6)
+    assert hourly["rmse_mw"] == pytest.approx((2470000 / 6) ** 0.5)
+
+
+async def test_the_top_of_hour_rule_in_the_sensitivity_is_measured_against_the_top_of_hour(
+    api: httpx.AsyncClient,
+):
+    top = (await _accuracy(api))["alignment_sensitivity"]["top_of_hour"]
+
+    assert top["measured_hours"] == 6
+    assert top["mae_mw"] == pytest.approx(600)
+    assert top["bias_mw"] == pytest.approx(1600 / 6)
+    assert top["rmse_mw"] == pytest.approx(460000**0.5)

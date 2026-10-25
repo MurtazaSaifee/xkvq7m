@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from app.domain.alignment import forecast_error, hourly_actual
+from app.domain.alignment import forecast_error, hourly_actual, top_of_hour_actual
 
 HOUR_START = datetime(2026, 1, 2, 10, 0)
 
@@ -44,3 +44,18 @@ def test_forecast_error_is_negative_when_wind_under_delivers_against_the_forecas
 def test_forecast_error_is_missing_when_either_side_is_missing():
     assert forecast_error(forecast_mw=None, actual_mw=12500) is None
     assert forecast_error(forecast_mw=12000, actual_mw=None) is None
+
+
+def test_top_of_hour_actual_is_the_half_hour_starting_on_the_hour_alone():
+    half_hours = {
+        datetime(2026, 1, 2, 10, 0): 14000,
+        datetime(2026, 1, 2, 10, 30): 14201,
+    }
+
+    assert top_of_hour_actual(HOUR_START, half_hours) == 14000
+
+
+def test_top_of_hour_actual_is_missing_when_only_the_half_hour_past_the_hour_exists():
+    only_second = {datetime(2026, 1, 2, 10, 30): 14200}
+
+    assert top_of_hour_actual(HOUR_START, only_second) is None

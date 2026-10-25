@@ -5,6 +5,7 @@ import pytest
 from app.domain.accuracy import (
     ERROR_BIN_WIDTH_MW,
     accuracy_window,
+    alignment_sensitivity,
     build_accuracy_report,
     decision_targets,
     delivery_days_between,
@@ -189,3 +190,61 @@ def test_the_report_selects_and_aligns_like_a_decision_snapshot_and_counts_exclu
     assert report.summary.mae_mw == pytest.approx(900)  # 19000 - mean(18000, 18200) = 900
     assert report.summary.bias_mw == pytest.approx(900)
     assert sum(b.count for b in report.histogram) == 1
+
+
+def test_alignment_sensitivity_compares_the_hourly_mean_with_the_top_of_hour_actual():
+    # One delivery day, with decision forecasts at 09:20 for four hours and nothing else.
+    # 00:00: halves 18000 and 18200, mean 18100, top 18000. Forecast 19000: errors 900 and 1000.
+    # 01:00: halves 18500 and 18500, so both rules give 18500. Forecast 18000: error -500 both ways.
+    # 02:00: only the 02:00 half-hour exists. Forecast 17000: measured at the top of the hour only.
+    # 03:00: only the 03:30 half-hour exists. Forecast 17000: measured under neither rule.
+    forecasts = [
+        DecisionForecast(datetime(2026, 1, 2, 0, 0), datetime(2026, 1, 1, 7, 30), 19000),
+        DecisionForecast(datetime(2026, 1, 2, 1, 0), datetime(2026, 1, 1, 7, 30), 18000),
+        DecisionForecast(datetime(2026, 1, 2, 2, 0), datetime(2026, 1, 1, 7, 30), 17000),
+        DecisionForecast(datetime(2026, 1, 2, 3, 0), datetime(2026, 1, 1, 7, 30), 17000),
+    ]
+    actuals = [
+        HalfHourActual(datetime(2026, 1, 2, 0, 0), 18000),
+        HalfHourActual(datetime(2026, 1, 2, 0, 30), 18200),
+        HalfHourActual(datetime(2026, 1, 2, 1, 0), 18500),
+        HalfHourActual(datetime(2026, 1, 2, 1, 30), 18500),
+        HalfHourActual(datetime(2026, 1, 2, 2, 0), 16000),
+        HalfHourActual(datetime(2026, 1, 2, 3, 30), 15000),
+    ]
+
+    result = alignment_sensitivity([date(2026, 1, 2)], time(9, 20), forecasts, actuals)
+
+    # Hourly mean measures 00:00 and 01:00: errors 900 and -500.
+    assert result.hourly_mean.measured_hours == 2
+    assert result.hourly_mean.mae_mw == pytest.approx(700)
+    assert result.hourly_mean.bias_mw == pytest.approx(200)
+    assert result.hourly_mean.rmse_mw == pytest.approx(530000**0.5)
+    assert result.hourly_mean.excluded_no_decision_forecast == 20
+    assert result.hourly_mean.excluded_no_actual == 2
+    # Top of hour measures 00:00, 01:00 and 02:00: errors 1000, -500 and 1000.
+    assert result.top_of_hour.measured_hours == 3
+    assert result.top_of_hour.mae_mw == pytest.approx(2500 / 3)
+    assert result.top_of_hour.bias_mw == pytest.approx(500)
+    assert result.top_of_hour.rmse_mw == pytest.approx(750000**0.5)
+    assert result.top_of_hour.excluded_no_decision_forecast == 20
+    assert result.top_of_hour.excluded_no_actual == 1
+
+
+def test_the_hourly_mean_side_of_the_sensitivity_is_the_headline_summary():
+    forecasts = [
+        DecisionForecast(datetime(2026, 1, 2, 0, 0), datetime(2026, 1, 1, 7, 30), 19000),
+        DecisionForecast(datetime(2026, 1, 2, 1, 0), datetime(2026, 1, 1, 7, 30), 18000),
+    ]
+    actuals = [
+        HalfHourActual(datetime(2026, 1, 2, 0, 0), 18000),
+        HalfHourActual(datetime(2026, 1, 2, 0, 30), 18200),
+        HalfHourActual(datetime(2026, 1, 2, 1, 0), 18500),
+        HalfHourActual(datetime(2026, 1, 2, 1, 30), 18500),
+    ]
+    days = [date(2026, 1, 2)]
+
+    report = build_accuracy_report(days, time(9, 20), forecasts, actuals)
+    result = alignment_sensitivity(days, time(9, 20), forecasts, actuals)
+
+    assert result.hourly_mean == report.summary

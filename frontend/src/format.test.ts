@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  formatCount,
   formatDayRange,
   formatMw,
   formatMwh,
@@ -14,6 +15,10 @@ import {
 describe("megawatt formatting", () => {
   it("rounds MW to whole megawatts with a thousands separator", () => {
     expect(formatMw(11283.56)).toBe("11,284 MW");
+  });
+
+  it("formats a whole count with a thousands separator", () => {
+    expect(formatCount(5521)).toBe("5,521");
   });
 
   it("signs an MW value, with zero unsigned", () => {
