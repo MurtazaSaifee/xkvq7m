@@ -6,7 +6,7 @@ from app.domain.decision import DEFAULT_CUTOFF, decision_cutoff_instant, parse_c
 
 
 def test_default_cutoff_is_the_epex_0920_auction():
-    assert DEFAULT_CUTOFF == time(9, 20)
+    assert time(9, 20) == DEFAULT_CUTOFF
 
 
 def test_cutoff_is_on_the_decision_day_the_day_before_delivery():

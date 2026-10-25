@@ -11,7 +11,7 @@ HALF_HOUR = timedelta(minutes=30)
 
 
 def hourly_actual(hour_start: datetime, half_hours: Mapping[datetime, float]) -> float | None:
-    """Mean generation over the hour starting at ``hour_start``, or ``None`` if a half-hour is missing."""
+    """Mean generation over the hour from ``hour_start``, or ``None`` if a half-hour is missing."""
     first = half_hours.get(hour_start)
     second = half_hours.get(hour_start + HALF_HOUR)
     if first is None or second is None:

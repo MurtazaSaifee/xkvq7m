@@ -15,7 +15,7 @@ from app.domain.kpis import DayKpis, day_kpis
 
 DEFAULT_CUTOFF = time(9, 20)
 UK_TIMEZONE = ZoneInfo("Europe/London")
-CUTOFF_PATTERN = r"([01]\d|2[0-3]):[0-5]\d"
+CUTOFF_PATTERN = r"^([01]\d|2[0-3]):[0-5]\d$"
 HOUR = timedelta(hours=1)
 _CUTOFF_RE = re.compile(CUTOFF_PATTERN)
 
@@ -64,7 +64,7 @@ def parse_cutoff(text: str) -> time:
 
 
 def decision_cutoff_instant(delivery_day: date, cutoff: time) -> datetime:
-    """The cutoff moment for ``delivery_day``: ``cutoff`` UK time on the day before it, as naive UTC."""
+    """The cutoff for ``delivery_day``: ``cutoff`` UK time on the day before, as naive UTC."""
     decision_day = delivery_day - timedelta(days=1)
     local = datetime.combine(decision_day, cutoff, tzinfo=UK_TIMEZONE)
     return local.astimezone(UTC).replace(tzinfo=None)

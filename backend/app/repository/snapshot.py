@@ -5,7 +5,7 @@ Coverage is returned as timezone-aware UTC. The decision methods use naive UTC, 
 the API adds the offset when it responds.
 """
 
-from collections.abc import Iterator, Sequence
+from collections.abc import Generator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
@@ -46,7 +46,7 @@ class SnapshotRepository:
         self._path = path
 
     @contextmanager
-    def _connection(self) -> Iterator[duckdb.DuckDBPyConnection]:
+    def _connection(self) -> Generator[duckdb.DuckDBPyConnection]:
         if not self._path.is_file():
             raise SnapshotUnavailableError(f"no snapshot at {self._path}")
         con = duckdb.connect(str(self._path), read_only=True)
