@@ -2,7 +2,7 @@
 
 Every design decision agreed before building, plus the build order. Domain terms are defined in [GLOSSARY.md](../GLOSSARY.md); decisions with real trade-offs are in [adr/](adr/); data facts are in [research/elexon-and-market-facts.md](research/elexon-and-market-facts.md).
 
-Guiding rule: **simple, finished completely, under budget** (free tiers only).
+Guiding rule: **simple, finished completely, on free tiers only**.
 
 ## Product
 
@@ -41,7 +41,7 @@ Guiding rule: **simple, finished completely, under budget** (free tiers only).
   - Sensitivity check: also compute the metrics comparing at *h*:00 only, and report the difference in the README.
 - **Forecast error:** forecast − actual, in MW. Positive means wind was over-forecast.
 - **Expected-error band:** for delivery day D, take the P10/P90 of decision-forecast errors over the 14 delivery days ending two days before D (D-15 … D-2), all known at the decision cutoff (walk-forward, so no lookahead). Report band coverage, with a target of about 80%.
-  - Next step, for the video only: condition the band on forecast level.
+  - Next step: condition the band on forecast level.
 - **Ingestion window:** WINDFOR publish times from 2025-12-18T00:00Z to 2026-02-01T23:59Z, and FUELHH settlement dates 2025-12-19 to 2026-02-01 inclusive. This covers the band's warm-up (delivery days 19 Dec to 31 Dec, since the band reads up to two days back) and every forecast for target times up to the end of 1 Feb.
 - **Missing decision forecasts:** a run published on day P covers 21:00Z P-1 to 21:00Z P+2. A cutoff before 02:30 on the decision day leaves 22:00 and 23:00 of the delivery day without a decision forecast. These are shown as gaps and excluded from the metrics, with the count reported.
 
@@ -104,16 +104,16 @@ docker-compose.yml, Makefile (dev, test, lint, ingest, gen-types), vercel.json
 ## Deliverables checklist
 
 - [ ] Public GitHub repo with a random name
-- [ ] README containing:
-  - [ ] a pitch and screenshot
-  - [ ] the live link
-  - [ ] quick start (`docker compose up`, `make dev`)
-  - [ ] a repo map
-  - [ ] how it works, including assumptions and the sensitivity check
-  - [ ] testing and CI
-  - [ ] ADR links
-  - [ ] **AI assistance** disclosure: *"Built with Claude Code (Anthropic) as an AI pair programmer for research, scaffolding, code and tests. I directed the design, reviewed every change, and own all decisions (see ADRs)."*
+- [x] README containing:
+  - [x] a pitch and screenshot
+  - [x] the live link
+  - [x] quick start (`docker compose up`, `make dev`)
+  - [x] a repo map
+  - [x] how it works, including assumptions and the sensitivity check
+  - [x] testing and CI
+  - [x] ADR links
+  - [x] **AI assistance** disclosure: *"Built with Claude Code (Anthropic) as an AI pair programmer for research, scaffolding, code and tests. I directed the design, reviewed every change, and own all decisions (see ADRs)."*
 - [ ] Deployed on Vercel. Open every link in incognito mode to check access.
 - [ ] Unlisted YouTube video, at most 10 minutes:
-  - Part 1: customer pitch, at most 5 minutes.
-  - Part 2: tech-lead walkthrough covering architecture, design, analysis, code base and practices, at most 5 minutes.
+  - Part 1: product pitch, at most 5 minutes.
+  - Part 2: technical walkthrough covering architecture, design, analysis, code base and practices, at most 5 minutes.
