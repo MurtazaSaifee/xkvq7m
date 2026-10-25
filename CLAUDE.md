@@ -10,6 +10,7 @@ A web app that helps a UK day-ahead power purchasing desk see the national wind 
 
 - **Free tiers only** (hosting, CI, databases, monitoring). Flag anything that could cost money before using it.
 - **Keep it simple and fast to finish completely.** A small, fully working, well-tested app beats a large, half-finished one. Choose the simpler option unless the extra complexity clearly pays off in the demo or review.
+- Commits carry the repo owner's name only: no `Co-Authored-By` or other attribution trailers, in commits or PR descriptions.
 - The repo is public and its name is anonymous. Never put a company name in committed files.
 
 ## Agent skills
