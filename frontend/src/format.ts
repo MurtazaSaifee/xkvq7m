@@ -21,6 +21,11 @@ export function formatDay(isoDay: string): string {
   return dayFormat.format(new Date(`${isoDay}T00:00:00Z`));
 }
 
+/** "2 Jan to 1 Feb 2026" for a range of delivery days, with the year given once. */
+export function formatDayRange(firstDay: string, lastDay: string): string {
+  return `${formatDay(firstDay)} to ${formatDay(lastDay)} ${lastDay.slice(0, 4)}`;
+}
+
 /** "09:20" for an instant, in UK clock time. */
 export function formatUkTime(isoInstant: string): string {
   return ukClockFormat.format(new Date(isoInstant));
@@ -39,6 +44,36 @@ export function formatSignedMwh(value: number): string {
   }
   const sign = rounded > 0 ? "+" : "−";
   return `${sign}${numberFormat.format(Math.abs(rounded))} MWh`;
+}
+
+/** Whole MW with a thousands separator, e.g. "11,284 MW". */
+export function formatMw(value: number): string {
+  return `${numberFormat.format(Math.round(value))} MW`;
+}
+
+/** A signed whole number: "+500", "−500" or "0". Used for error values, which are signed. */
+export function formatSignedNumber(value: number): string {
+  const rounded = Math.round(value);
+  if (rounded === 0) {
+    return "0";
+  }
+  const sign = rounded > 0 ? "+" : "−";
+  return `${sign}${numberFormat.format(Math.abs(rounded))}`;
+}
+
+/** A signed MW value: "+1,000 MW" or "−500 MW". Zero has no sign. */
+export function formatSignedMw(value: number): string {
+  return Math.round(value) === 0 ? formatMw(0) : `${formatSignedNumber(value)} MW`;
+}
+
+const percentFormat = new Intl.NumberFormat("en-GB", {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+});
+
+/** A percentage to one decimal place, e.g. "18.1%". The input is already in percent. */
+export function formatPercent(value: number): string {
+  return `${percentFormat.format(value)}%`;
 }
 
 export interface OutlookFacts {

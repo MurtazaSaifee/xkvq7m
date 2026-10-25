@@ -1,12 +1,25 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { fetchDecisionSnapshot, fetchHealth, fetchMeta } from "./client";
+import { fetchAccuracy, fetchDecisionSnapshot, fetchHealth, fetchMeta } from "./client";
 
 export const healthQueryKey = ["health"] as const;
 export const metaQueryKey = ["meta"] as const;
 
 export function decisionSnapshotQueryKey(deliveryDay: string, cutoff: string) {
   return ["decision-snapshot", deliveryDay, cutoff] as const;
+}
+
+export function accuracyQueryKey(cutoff: string) {
+  return ["accuracy", cutoff] as const;
+}
+
+// The accuracy figures are fixed for a cutoff, so they are kept until the page is reloaded.
+export function useAccuracyQuery(cutoff: string) {
+  return useQuery({
+    queryKey: accuracyQueryKey(cutoff),
+    queryFn: ({ signal }) => fetchAccuracy(cutoff, signal),
+    staleTime: Infinity,
+  });
 }
 
 // The snapshot is fixed for a given day and cutoff, so it is kept until the page is reloaded.

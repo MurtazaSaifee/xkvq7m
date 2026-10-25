@@ -1,6 +1,32 @@
 import { describe, expect, it } from "vitest";
 
-import { formatMwh, formatSignedMwh, formatUkTime, outlookSentence } from "./format";
+import {
+  formatDayRange,
+  formatMw,
+  formatMwh,
+  formatPercent,
+  formatSignedMw,
+  formatSignedMwh,
+  formatUkTime,
+  outlookSentence,
+} from "./format";
+
+describe("megawatt formatting", () => {
+  it("rounds MW to whole megawatts with a thousands separator", () => {
+    expect(formatMw(11283.56)).toBe("11,284 MW");
+  });
+
+  it("signs an MW value, with zero unsigned", () => {
+    expect(formatSignedMw(-500)).toBe("−500 MW");
+    expect(formatSignedMw(1000)).toBe("+1,000 MW");
+    expect(formatSignedMw(0)).toBe("0 MW");
+  });
+
+  it("shows a percentage to one decimal place", () => {
+    expect(formatPercent(18.0697)).toBe("18.1%");
+    expect(formatPercent(3.5)).toBe("3.5%");
+  });
+});
 
 describe("outlookSentence", () => {
   it("says which delivery day, cutoff and forecast run the view shows", () => {
@@ -34,6 +60,12 @@ describe("number formatting", () => {
   it("signs the error so over-forecast reads as positive", () => {
     expect(formatSignedMwh(74638)).toBe("+74,638 MWh");
     expect(formatSignedMwh(-4000)).toBe("−" + "4,000 MWh");
+  });
+});
+
+describe("formatDayRange", () => {
+  it("names a range of delivery days with the year once, at the end", () => {
+    expect(formatDayRange("2026-01-02", "2026-02-01")).toBe("2 Jan to 1 Feb 2026");
   });
 });
 
