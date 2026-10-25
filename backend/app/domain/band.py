@@ -45,14 +45,12 @@ class ExpectedErrorBand:
     upper_error_mw: float
     history_days: int
 
-    def actual_range_mw(self, forecast_mw: float | None) -> tuple[float | None, float | None]:
+    def actual_range_mw(self, forecast_mw: float) -> tuple[float, float]:
         """The range the actual generation is expected to fall in, given a decision forecast.
 
         Positive past errors (over-forecasts) push the range down, so the upper edge of the error
-        gives the lower edge of the actual. No forecast gives no range.
+        gives the lower edge of the actual.
         """
-        if forecast_mw is None:
-            return None, None
         return forecast_mw - self.upper_error_mw, forecast_mw - self.lower_error_mw
 
 
@@ -172,7 +170,7 @@ def build_band_coverage(
                 continue
             low, high = band.actual_range_mw(hour.forecast_mw)
             counted += 1
-            if low is not None and high is not None and low <= hour.actual_mw <= high:
+            if low <= hour.actual_mw <= high:
                 inside += 1
 
     return BandCoverage(

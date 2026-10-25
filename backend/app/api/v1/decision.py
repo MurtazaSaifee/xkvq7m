@@ -95,7 +95,10 @@ def _band_response(band: ExpectedErrorBand | None) -> ExpectedErrorBandResponse 
 
 
 def _hour_response(hour: DecisionHour, band: ExpectedErrorBand | None) -> HourResponse:
-    band_low, band_high = (None, None) if band is None else band.actual_range_mw(hour.forecast_mw)
+    if band is None or hour.forecast_mw is None:
+        band_low, band_high = None, None
+    else:
+        band_low, band_high = band.actual_range_mw(hour.forecast_mw)
     return HourResponse(
         target_time=_utc(hour.hour_start),
         publish_time=_utc_or_none(hour.publish_time),

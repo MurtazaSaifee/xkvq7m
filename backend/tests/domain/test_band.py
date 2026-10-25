@@ -14,7 +14,6 @@ import pytest
 from app.domain.band import (
     BAND_LOOKBACK_DAYS,
     BAND_MIN_HISTORY_DAYS,
-    ExpectedErrorBand,
     band_for_day,
     build_band_coverage,
     expected_error_band,
@@ -216,12 +215,6 @@ def test_changing_an_actual_or_forecast_on_the_day_before_or_later_does_not_move
         ]
 
     assert band_for_day(DAY, CUTOFF, forecasts, actuals) == band
-
-
-def test_an_hour_with_no_decision_forecast_has_no_band_range():
-    band = ExpectedErrorBand(lower_error_mw=60, upper_error_mw=540, history_days=7)
-
-    assert band.actual_range_mw(None) == (None, None)
 
 
 def test_band_coverage_counts_hours_inside_the_band_with_inclusive_edges():
