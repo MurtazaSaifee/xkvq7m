@@ -1,0 +1,3 @@
+# Serve from an ingested snapshot, not a live Elexon proxy
+
+The app never calls Elexon while handling a user request. An ingestion command fetches the WINDFOR and FUELHH (wind) data for the configured window, validates and deduplicates it, and writes it to a local store that the image ships with. The API only reads from that store. We chose this over proxying Elexon live because the required window is fixed and historical (decisions made in January 2026): a live proxy would add latency, rate-limit exposure and a demo that fails when Elexon is down, and would gain nothing. The date window is configuration, so a production version would run the same command on a schedule over a rolling window.

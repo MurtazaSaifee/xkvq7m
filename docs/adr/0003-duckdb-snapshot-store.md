@@ -1,0 +1,3 @@
+# DuckDB as the snapshot store
+
+The ingested snapshot lives in a read-only DuckDB file, accessed only through a repository module. The API layer never writes SQL. DuckDB's native `ASOF JOIN` expresses the decision-forecast rule ("the latest forecast published before the cutoff") as one declarative query, and its columnar engine makes the accuracy aggregations cheap. SQLite was rejected because as-of selection needs clumsy window functions. Postgres was rejected because it needs a second, paid service for a small, read-only, historical dataset. A move to Postgres or TimescaleDB for a live production feed would mean replacing the repository adapter, not the rest of the app.

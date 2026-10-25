@@ -1,0 +1,20 @@
+# Local issue tracker
+.scratch/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+
+# Node
+node_modules/
+dist/
+
+# Env and tooling
+.env
+.env.*
+.vercel/
+.DS_Store
