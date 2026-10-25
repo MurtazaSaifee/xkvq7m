@@ -194,8 +194,7 @@ export function MethodologyView() {
         <Paragraph>
           The headline metrics recomputed with the other alignment rule: each hour is compared with the
           half-hour starting at h:00 alone. Both use the same decision forecasts, so any difference
-          comes from the rule. <code className="text-sm">make sensitivity</code> prints the same table
-          for the README.
+          comes from the rule. The README quotes the same table.
         </Paragraph>
         <CutoffPicker />
         {accuracy.isError ? (
