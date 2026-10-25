@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.request_context import REQUEST_ID_HEADER
+from app.core.security_headers import SECURITY_HEADERS
 
 PROBLEM_MEDIA_TYPE = "application/problem+json"
 ABOUT_BLANK = "about:blank"
@@ -157,7 +158,10 @@ async def _handle_unexpected_error(request: Request, error: Exception) -> JSONRe
         exc_info=error,
         extra={"request_id": request_id, "path": request.url.path},
     )
-    headers = None if request_id is None else {REQUEST_ID_HEADER: request_id}
+    # This answer skips the middleware stack, so it carries the security headers itself.
+    headers = dict(SECURITY_HEADERS)
+    if request_id is not None:
+        headers[REQUEST_ID_HEADER] = request_id
     return _problem_response(
         request,
         HTTPStatus.INTERNAL_SERVER_ERROR,
