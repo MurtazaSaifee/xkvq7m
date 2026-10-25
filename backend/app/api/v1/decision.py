@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Query
@@ -12,14 +12,14 @@ from app.api.problems import (
     ProblemError,
 )
 from app.core.config import snapshot_path
+from app.domain.accuracy import accuracy_window, decision_targets
+from app.domain.band import ExpectedErrorBand, band_for_day, lookback_days
 from app.domain.decision import (
     CUTOFF_PATTERN,
     DEFAULT_CUTOFF,
+    DecisionHour,
     DecisionSnapshot,
     build_decision_snapshot,
-    decision_cutoff_instant,
-    delivery_day_half_hours,
-    delivery_day_hours,
     parse_cutoff,
 )
 from app.repository.snapshot import SnapshotRepository, SnapshotUnavailableError
@@ -37,13 +37,29 @@ _PROBLEM_RESPONSES: dict[int | str, dict[str, Any]] = {
 
 
 class HourResponse(BaseModel):
-    """One delivery hour: decision forecast, aligned actual and forecast error, all in MW."""
+    """One delivery hour: decision forecast, aligned actual and forecast error, all in MW.
+
+    The band range is where the actual is expected to fall, given the decision forecast. It is null
+    when the hour has no decision forecast, or the day has no expected-error band.
+    """
 
     target_time: AwareDatetime
     publish_time: AwareDatetime | None
     forecast_mw: float | None
     actual_mw: float | None
     error_mw: float | None
+    band_low_mw: float | None
+    band_high_mw: float | None
+
+
+class ExpectedErrorBandResponse(BaseModel):
+    """The band for the delivery day: P10 and P90 of the hourly decision-forecast errors (forecast
+    minus actual, MW) over the 14 delivery days before it, at the same cutoff. A band needs at least
+    7 of those days with measured errors."""
+
+    lower_error_mw: float
+    upper_error_mw: float
+    history_days: int
 
 
 class ActualResponse(BaseModel):
@@ -69,6 +85,7 @@ class DecisionSnapshotResponse(BaseModel):
     hours: list[HourResponse]
     actuals: list[ActualResponse]
     kpis: KpisResponse
+    band: ExpectedErrorBandResponse | None
 
 
 def _utc(value: datetime) -> datetime:
@@ -80,23 +97,39 @@ def _utc_or_none(value: datetime | None) -> datetime | None:
     return None if value is None else _utc(value)
 
 
-def _to_response(snapshot: DecisionSnapshot) -> DecisionSnapshotResponse:
+def _band_response(band: ExpectedErrorBand | None) -> ExpectedErrorBandResponse | None:
+    if band is None:
+        return None
+    return ExpectedErrorBandResponse(
+        lower_error_mw=band.lower_error_mw,
+        upper_error_mw=band.upper_error_mw,
+        history_days=band.history_days,
+    )
+
+
+def _hour_response(hour: DecisionHour, band: ExpectedErrorBand | None) -> HourResponse:
+    band_low, band_high = (None, None) if band is None else band.actual_range_mw(hour.forecast_mw)
+    return HourResponse(
+        target_time=_utc(hour.hour_start),
+        publish_time=_utc_or_none(hour.publish_time),
+        forecast_mw=hour.forecast_mw,
+        actual_mw=hour.actual_mw,
+        error_mw=hour.error_mw,
+        band_low_mw=band_low,
+        band_high_mw=band_high,
+    )
+
+
+def _to_response(
+    snapshot: DecisionSnapshot, band: ExpectedErrorBand | None
+) -> DecisionSnapshotResponse:
     return DecisionSnapshotResponse(
         delivery_day=snapshot.delivery_day,
         decision_day=snapshot.decision_day,
         cutoff=snapshot.cutoff.strftime("%H:%M"),
         cutoff_time=_utc(snapshot.cutoff_time),
         forecast_run_publish_time=_utc_or_none(snapshot.forecast_run_publish_time),
-        hours=[
-            HourResponse(
-                target_time=_utc(hour.hour_start),
-                publish_time=_utc_or_none(hour.publish_time),
-                forecast_mw=hour.forecast_mw,
-                actual_mw=hour.actual_mw,
-                error_mw=hour.error_mw,
-            )
-            for hour in snapshot.hours
-        ],
+        hours=[_hour_response(hour, band) for hour in snapshot.hours],
         actuals=[
             ActualResponse(target_time=_utc(actual.target_time), generation_mw=actual.generation_mw)
             for actual in snapshot.actuals
@@ -109,6 +142,7 @@ def _to_response(snapshot: DecisionSnapshot) -> DecisionSnapshotResponse:
             missing_forecast_hours=snapshot.kpis.missing_forecast_hours,
             missing_actual_hours=snapshot.kpis.missing_actual_hours,
         ),
+        band=_band_response(band),
     )
 
 
@@ -146,16 +180,16 @@ def decision_snapshot(
             cutoff_time = parse_cutoff(cutoff)
         except ValueError as error:
             raise ProblemError(422, "Invalid request", str(error), INVALID_PARAMETER) from error
-        targets = delivery_day_hours(delivery_day)
-        half_hours = delivery_day_half_hours(delivery_day)
-        forecasts = repository.decision_forecasts(
-            targets, decision_cutoff_instant(delivery_day, cutoff_time)
-        )
-        actuals = repository.actuals_between(half_hours[0], half_hours[-1] + timedelta(minutes=30))
+        # The band reads the fourteen days before the delivery day, so their forecasts and actuals
+        # are fetched too. Nothing after the delivery day is needed.
+        days = [*lookback_days(delivery_day), delivery_day]
+        forecasts = repository.decision_forecasts_at(decision_targets(days, cutoff_time))
+        actuals = repository.actuals_between(*accuracy_window(days))
     except SnapshotUnavailableError as error:
         raise ProblemError(
             503, "Service Unavailable", "Data snapshot is not available", ABOUT_BLANK
         ) from error
 
     snapshot = build_decision_snapshot(delivery_day, cutoff_time, forecasts, actuals)
-    return _to_response(snapshot)
+    band = band_for_day(delivery_day, cutoff_time, forecasts, actuals)
+    return _to_response(snapshot, band)

@@ -33,7 +33,7 @@ def _days(first: date, last: date) -> list[date]:
 
 
 def _rows(first: date) -> tuple[list[tuple[datetime, datetime, int]], list[tuple[datetime, int]]]:
-    """Forecasts (publish, target, MW) and half-hourly actuals (target, MW) from ``first`` to 1 Feb."""
+    """Forecasts (publish, target, MW) and half-hourly actuals, from ``first`` to 1 Feb."""
     forecasts: list[tuple[datetime, datetime, int]] = []
     actuals: list[tuple[datetime, int]] = []
     for day in _days(first, SCOPE_LAST):
@@ -59,7 +59,8 @@ def _write_band_snapshot(path: Path, first: date) -> Path:
         con.executemany("INSERT INTO forecasts VALUES (?, ?, ?)", forecasts)
         con.executemany("INSERT INTO actuals VALUES (?, ?)", actuals)
         con.execute(
-            "INSERT INTO ingestion_metadata VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 0, 0, 0, 0, 0)",
+            "INSERT INTO ingestion_metadata VALUES "
+            "(?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 0, 0, 0, 0, 0)",
             [
                 datetime(2026, 10, 25, 10, 0),
                 datetime(2025, 12, 18, 0, 0),

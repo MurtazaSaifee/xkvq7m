@@ -41,12 +41,15 @@ async def test_each_hour_carries_its_forecast_aligned_actual_and_error(api: http
         ).json()
 
     # 00:00 forecast 10100 (published exactly at the cutoff), actual mean of 14000 and 14200.
+    # This snapshot has no December warm-up, so the day has no band and the band range is null.
     assert body["hours"][0] == {
         "target_time": "2026-01-02T00:00:00Z",
         "publish_time": "2026-01-01T09:20:00Z",
         "forecast_mw": 10100.0,
         "actual_mw": 14100.0,
         "error_mw": -4000.0,
+        "band_low_mw": None,
+        "band_high_mw": None,
     }
     # 01:00 has no decision forecast and no actual: a gap, not an error.
     assert body["hours"][1] == {
@@ -55,6 +58,8 @@ async def test_each_hour_carries_its_forecast_aligned_actual_and_error(api: http
         "forecast_mw": None,
         "actual_mw": None,
         "error_mw": None,
+        "band_low_mw": None,
+        "band_high_mw": None,
     }
 
 
@@ -152,6 +157,8 @@ async def test_a_cutoff_before_0230_leaves_2200_and_2300_as_gaps_not_zeros(api: 
             "forecast_mw": None,
             "actual_mw": None,
             "error_mw": None,
+            "band_low_mw": None,
+            "band_high_mw": None,
         }
     assert _hour(body, "2026-01-05T20:00:00Z")["forecast_mw"] == 15300
     # 22 of 24 hours have no decision forecast: everything except 20:00 and 21:00.
