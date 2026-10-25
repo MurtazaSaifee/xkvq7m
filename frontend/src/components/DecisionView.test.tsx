@@ -42,6 +42,7 @@ function snapshotFor(deliveryDay: string, overrides: Partial<DecisionSnapshot> =
       missing_forecast_hours: 0,
       missing_actual_hours: 0,
     },
+    band: { lower_error_mw: -200, upper_error_mw: 400, history_days: 14 },
     ...overrides,
   };
 }
@@ -133,6 +134,36 @@ describe("DecisionView", () => {
       "/api/v1/decision-snapshot?delivery_day=2026-01-15&cutoff=09%3A20",
       expect.anything(),
     );
+  });
+
+  it("names the shaded expected-error band in the legend when the day has one", async () => {
+    stubApi({ snapshot: (day) => jsonResponse(snapshotFor(day ?? "")) });
+
+    renderView();
+
+    expect(
+      await screen.findByText("Expected-error band, from past forecast errors"),
+    ).toBeVisible();
+    expect(
+      screen.queryByText(/No expected-error band for this day/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("says why there is no band when the day has too little history", async () => {
+    stubApi({
+      snapshot: (day) => jsonResponse(snapshotFor(day ?? "", { band: null })),
+    });
+
+    renderView();
+
+    expect(
+      await screen.findByText(
+        "No expected-error band for this day: too few past days have measured errors at this cutoff.",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.queryByText("Expected-error band, from past forecast errors"),
+    ).not.toBeInTheDocument();
   });
 
   it("shows the problem detail when the snapshot cannot be loaded", async () => {
