@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
-.PHONY: help install dev test test-backend test-frontend lint lint-backend lint-frontend gen-types
+.PHONY: help install dev test test-backend test-frontend lint lint-backend lint-frontend gen-types ingest
 
 help: ## List the make targets
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "%-16s %s\n", $$1, $$2}'
@@ -30,6 +30,9 @@ lint-backend: ## ruff check, ruff format --check, pyright
 
 lint-frontend: ## eslint, tsc
 	cd frontend && pnpm lint && pnpm typecheck
+
+ingest: ## Fetch Elexon data for the fixed window and rebuild data/snapshot.duckdb (needs network)
+	cd backend && uv run python -m app.ingestion --output ../data/snapshot.duckdb
 
 gen-types: ## Regenerate the OpenAPI document and the frontend API types
 	cd backend && uv run python -c "import json; from app.main import app; print(json.dumps(app.openapi(), indent=2))" > ../frontend/src/api/openapi.json

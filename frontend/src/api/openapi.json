@@ -25,10 +25,51 @@
           }
         }
       }
+    },
+    "/api/v1/meta": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "summary": "Snapshot coverage and ingestion metadata",
+        "operationId": "meta_api_v1_meta_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "DeliveryDaysResponse": {
+        "properties": {
+          "first": {
+            "type": "string",
+            "format": "date",
+            "title": "First"
+          },
+          "last": {
+            "type": "string",
+            "format": "date",
+            "title": "Last"
+          }
+        },
+        "type": "object",
+        "required": [
+          "first",
+          "last"
+        ],
+        "title": "DeliveryDaysResponse"
+      },
       "HealthResponse": {
         "properties": {
           "status": {
@@ -42,6 +83,76 @@
           "status"
         ],
         "title": "HealthResponse"
+      },
+      "MetaResponse": {
+        "properties": {
+          "ingested_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Ingested At"
+          },
+          "forecasts": {
+            "$ref": "#/components/schemas/TargetCoverageResponse"
+          },
+          "actuals": {
+            "$ref": "#/components/schemas/TargetCoverageResponse"
+          },
+          "excluded_forecasts": {
+            "type": "integer",
+            "title": "Excluded Forecasts"
+          },
+          "delivery_days": {
+            "$ref": "#/components/schemas/DeliveryDaysResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ingested_at",
+          "forecasts",
+          "actuals",
+          "excluded_forecasts",
+          "delivery_days"
+        ],
+        "title": "MetaResponse"
+      },
+      "TargetCoverageResponse": {
+        "properties": {
+          "first_target_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Target Time"
+          },
+          "last_target_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Target Time"
+          },
+          "row_count": {
+            "type": "integer",
+            "title": "Row Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "first_target_time",
+          "last_target_time",
+          "row_count"
+        ],
+        "title": "TargetCoverageResponse"
       }
     }
   }
