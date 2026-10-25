@@ -9,6 +9,10 @@ export type DayKpis = components["schemas"]["KpisResponse"];
 export type AccuracyResponse = components["schemas"]["AccuracyResponse"];
 export type AccuracySummary = components["schemas"]["AccuracySummaryResponse"];
 export type ErrorBin = components["schemas"]["ErrorBinResponse"];
+export type HeatmapCell = components["schemas"]["HeatmapCellResponse"];
+export type WorstDay = components["schemas"]["WorstDayResponse"];
+export type HorizonBucket = components["schemas"]["HorizonBucketResponse"];
+export type HorizonRange = components["schemas"]["HorizonRangeResponse"];
 
 /** The problem document a route returns for an error (RFC 7807). */
 type ProblemBody = { title?: string; detail?: string };

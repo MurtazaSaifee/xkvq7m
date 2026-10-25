@@ -289,4 +289,54 @@ describe("DecisionView", () => {
       screen.getByText("Left out: 22 hours without a decision forecast."),
     ).toBeInTheDocument();
   });
+
+  it("opens on the delivery day named in the URL, so a shared link shows that day", async () => {
+    window.history.replaceState(null, "", "/?day=2026-01-15");
+    const fetchMock = stubApi({
+      snapshot: (day) => jsonResponse(snapshotFor(day ?? "")),
+    });
+
+    renderView();
+
+    expect(
+      await screen.findByRole("heading", { name: /Wind outlook for 15 Jan/ }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Delivery day")).toHaveValue("2026-01-15");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/decision-snapshot?delivery_day=2026-01-15&cutoff=09%3A20",
+      expect.anything(),
+    );
+  });
+
+  it("falls back to the latest delivery day when the URL names a day outside the scope", async () => {
+    window.history.replaceState(null, "", "/?day=2025-06-01");
+    stubApi({
+      snapshot: (day) => jsonResponse(snapshotFor(day ?? "")),
+    });
+
+    renderView();
+
+    expect(
+      await screen.findByRole("heading", { name: /Wind outlook for 1 Feb/ }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Delivery day")).toHaveValue("2026-02-01");
+  });
+
+  it("writes the chosen delivery day into the URL, beside the cutoff", async () => {
+    window.history.replaceState(null, "", "/?cutoff=14:30");
+    stubApi({
+      snapshot: (day) => jsonResponse(snapshotFor(day ?? "")),
+    });
+    renderView();
+    await screen.findByRole("heading", { name: /Wind outlook for 1 Feb/ });
+
+    fireEvent.change(screen.getByLabelText("Delivery day"), {
+      target: { value: "2026-01-15" },
+    });
+
+    await screen.findByRole("heading", { name: /Wind outlook for 15 Jan/ });
+    const params = new URLSearchParams(window.location.search);
+    expect(params.get("day")).toBe("2026-01-15");
+    expect(params.get("cutoff")).toBe("14:30");
+  });
 });

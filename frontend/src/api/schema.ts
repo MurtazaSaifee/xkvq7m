@@ -84,6 +84,10 @@ export interface components {
             summary: components["schemas"]["AccuracySummaryResponse"];
             histogram: components["schemas"]["ErrorHistogramResponse"];
             band_coverage: components["schemas"]["BandCoverageResponse"];
+            heatmap: components["schemas"]["ErrorHeatmapResponse"];
+            /** Worst Days */
+            worst_days: components["schemas"]["WorstDayResponse"][];
+            horizon_curve: components["schemas"]["HorizonCurveResponse"];
         };
         /**
          * AccuracySummaryResponse
@@ -213,6 +217,11 @@ export interface components {
             /** Count */
             count: number;
         };
+        /** ErrorHeatmapResponse */
+        ErrorHeatmapResponse: {
+            /** Cells */
+            cells: components["schemas"]["HeatmapCellResponse"][];
+        };
         /** ErrorHistogramResponse */
         ErrorHistogramResponse: {
             /** Bin Width Mw */
@@ -223,8 +232,8 @@ export interface components {
         /**
          * ExpectedErrorBandResponse
          * @description The band for the delivery day: P10 and P90 of the hourly decision-forecast errors (forecast
-         *     minus actual, MW) over the 14 delivery days before it, at the same cutoff. A band needs at least
-         *     7 of those days with measured errors.
+         *     minus actual, MW) over the 14 delivery days that end two days before it (D-15 to D-2), at the
+         *     same cutoff. A band needs at least 7 of those days with measured errors.
          */
         ExpectedErrorBandResponse: {
             /** Lower Error Mw */
@@ -241,6 +250,60 @@ export interface components {
              * @constant
              */
             status: "ok";
+        };
+        /**
+         * HeatmapCellResponse
+         * @description The decision forecast error for one delivery day and one UK hour of day (0 to 23), in MW.
+         *     ``error_mw`` is null where that hour cannot be measured.
+         */
+        HeatmapCellResponse: {
+            /**
+             * Delivery Day
+             * Format: date
+             */
+            delivery_day: string;
+            /** Hour */
+            hour: number;
+            /** Error Mw */
+            error_mw: number | null;
+        };
+        /**
+         * HorizonBucketResponse
+         * @description Forecasts whose horizon is in (lower_hours, upper_hours]. MAE and bias are in MW and are null
+         *     when the bucket has no measured forecast, in which case the sample count is zero.
+         */
+        HorizonBucketResponse: {
+            /** Lower Hours */
+            lower_hours: number;
+            /** Upper Hours */
+            upper_hours: number;
+            /** Mae Mw */
+            mae_mw: number | null;
+            /** Bias Mw */
+            bias_mw: number | null;
+            /** Sample Count */
+            sample_count: number;
+        };
+        /**
+         * HorizonCurveResponse
+         * @description Error by forecast horizon over every forecast whose target time is in scope, not only the
+         *     decision forecasts. Buckets are 1 hour wide, from 1 hour up to the longest horizon in scope.
+         *     ``decision_horizon_range_hours`` is the shortest and longest horizon of the decision forecasts
+         *     at the cutoff, so the curve can mark where the desk's decisions sit.
+         */
+        HorizonCurveResponse: {
+            /** Buckets */
+            buckets: components["schemas"]["HorizonBucketResponse"][];
+            /** Excluded No Actual */
+            excluded_no_actual: number;
+            decision_horizon_range_hours: components["schemas"]["HorizonRangeResponse"] | null;
+        };
+        /** HorizonRangeResponse */
+        HorizonRangeResponse: {
+            /** Min Hours */
+            min_hours: number;
+            /** Max Hours */
+            max_hours: number;
         };
         /**
          * HourResponse
@@ -304,6 +367,26 @@ export interface components {
             last_target_time: string | null;
             /** Row Count */
             row_count: number;
+        };
+        /**
+         * WorstDayResponse
+         * @description A delivery day ranked by the absolute value of its energy error. Energies are in MWh, and the
+         *     error is forecast minus actual, so a positive error means wind was over-forecast.
+         */
+        WorstDayResponse: {
+            /**
+             * Delivery Day
+             * Format: date
+             */
+            delivery_day: string;
+            /** Error Mwh */
+            error_mwh: number;
+            /** Forecast Mwh */
+            forecast_mwh: number;
+            /** Actual Mwh */
+            actual_mwh: number;
+            /** Paired Hours */
+            paired_hours: number;
         };
     };
     responses: never;

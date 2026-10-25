@@ -28,6 +28,8 @@ from app.domain.band import (
     lookback_days,
 )
 from app.domain.decision import CUTOFF_PATTERN, DEFAULT_CUTOFF, parse_cutoff
+from app.domain.error_grid import ErrorGrid, build_error_grid
+from app.domain.horizon import HorizonCurve, HorizonRange, error_by_horizon
 from app.repository.snapshot import SnapshotRepository, SnapshotUnavailableError
 
 router = APIRouter()
@@ -91,12 +93,66 @@ class BandCoverageResponse(BaseModel):
     excluded_no_actual: int
 
 
+class HeatmapCellResponse(BaseModel):
+    """The decision forecast error for one delivery day and one UK hour of day (0 to 23), in MW.
+    ``error_mw`` is null where that hour cannot be measured."""
+
+    delivery_day: date
+    hour: int
+    error_mw: float | None
+
+
+class ErrorHeatmapResponse(BaseModel):
+    cells: list[HeatmapCellResponse]
+
+
+class WorstDayResponse(BaseModel):
+    """A delivery day ranked by the absolute value of its energy error. Energies are in MWh, and the
+    error is forecast minus actual, so a positive error means wind was over-forecast."""
+
+    delivery_day: date
+    error_mwh: float
+    forecast_mwh: float
+    actual_mwh: float
+    paired_hours: int
+
+
+class HorizonBucketResponse(BaseModel):
+    """Forecasts whose horizon is in (lower_hours, upper_hours]. MAE and bias are in MW and are null
+    when the bucket has no measured forecast, in which case the sample count is zero."""
+
+    lower_hours: int
+    upper_hours: int
+    mae_mw: float | None
+    bias_mw: float | None
+    sample_count: int
+
+
+class HorizonRangeResponse(BaseModel):
+    min_hours: float
+    max_hours: float
+
+
+class HorizonCurveResponse(BaseModel):
+    """Error by forecast horizon over every forecast whose target time is in scope, not only the
+    decision forecasts. Buckets are 1 hour wide, from 1 hour up to the longest horizon in scope.
+    ``decision_horizon_range_hours`` is the shortest and longest horizon of the decision forecasts
+    at the cutoff, so the curve can mark where the desk's decisions sit."""
+
+    buckets: list[HorizonBucketResponse]
+    excluded_no_actual: int
+    decision_horizon_range_hours: HorizonRangeResponse | None
+
+
 class AccuracyResponse(BaseModel):
     cutoff: str
     delivery_days: DeliveryDayRangeResponse
     summary: AccuracySummaryResponse
     histogram: ErrorHistogramResponse
     band_coverage: BandCoverageResponse
+    heatmap: ErrorHeatmapResponse
+    worst_days: list[WorstDayResponse]
+    horizon_curve: HorizonCurveResponse
 
 
 def _band_coverage_response(coverage: BandCoverage) -> BandCoverageResponse:
@@ -112,7 +168,34 @@ def _band_coverage_response(coverage: BandCoverage) -> BandCoverageResponse:
     )
 
 
-def _to_response(report: AccuracyReport, coverage: BandCoverage) -> AccuracyResponse:
+def _horizon_range_to_response(decision_range: HorizonRange | None) -> HorizonRangeResponse | None:
+    if decision_range is None:
+        return None
+    return HorizonRangeResponse(
+        min_hours=decision_range.min_hours, max_hours=decision_range.max_hours
+    )
+
+
+def _horizon_to_response(curve: HorizonCurve) -> HorizonCurveResponse:
+    return HorizonCurveResponse(
+        buckets=[
+            HorizonBucketResponse(
+                lower_hours=b.lower_hours,
+                upper_hours=b.upper_hours,
+                mae_mw=b.mae_mw,
+                bias_mw=b.bias_mw,
+                sample_count=b.sample_count,
+            )
+            for b in curve.buckets
+        ],
+        excluded_no_actual=curve.excluded_no_actual,
+        decision_horizon_range_hours=_horizon_range_to_response(curve.decision_range),
+    )
+
+
+def _to_response(
+    report: AccuracyReport, grid: ErrorGrid, horizon: HorizonCurve, coverage: BandCoverage
+) -> AccuracyResponse:
     summary = report.summary
     return AccuracyResponse(
         cutoff=report.cutoff.strftime("%H:%M"),
@@ -137,6 +220,25 @@ def _to_response(report: AccuracyReport, coverage: BandCoverage) -> AccuracyResp
             ],
         ),
         band_coverage=_band_coverage_response(coverage),
+        heatmap=ErrorHeatmapResponse(
+            cells=[
+                HeatmapCellResponse(
+                    delivery_day=cell.delivery_day, hour=cell.hour, error_mw=cell.error_mw
+                )
+                for cell in grid.heatmap
+            ]
+        ),
+        worst_days=[
+            WorstDayResponse(
+                delivery_day=worst.delivery_day,
+                error_mwh=worst.error_mwh,
+                forecast_mwh=worst.forecast_mwh,
+                actual_mwh=worst.actual_mwh,
+                paired_hours=worst.paired_hours,
+            )
+            for worst in grid.worst_days
+        ],
+        horizon_curve=_horizon_to_response(horizon),
     )
 
 
@@ -164,17 +266,25 @@ def accuracy(
         repository = SnapshotRepository(snapshot_path())
         first_day, last_day = repository.delivery_days()
         days = delivery_days_between(first_day, last_day)
-        # The band's warm-up is the lookback of the first scope day, so those days are read too.
-        # The summary and histogram still cover only the scope days.
-        history = delivery_days_between(lookback_days(first_day)[0], last_day)
-        window_start, window_end = accuracy_window(history)
-        forecasts = repository.decision_forecasts_at(decision_targets(history, cutoff_time))
+        window_start, window_end = accuracy_window(days)
+        forecasts = repository.decision_forecasts_at(decision_targets(days, cutoff_time))
         actuals = repository.actuals_between(window_start, window_end)
+        all_forecasts = repository.forecasts_between(window_start, window_end)
+        # The band's warm-up is the lookback of the first scope day, so those days are read too.
+        # Only the band coverage uses them. The other figures still cover only the scope days.
+        history = delivery_days_between(lookback_days(first_day)[0], last_day)
+        history_start, history_end = accuracy_window(history)
+        band_forecasts = repository.decision_forecasts_at(decision_targets(history, cutoff_time))
+        band_actuals = repository.actuals_between(history_start, history_end)
     except SnapshotUnavailableError as error:
         raise ProblemError(
             503, "Service Unavailable", "Data snapshot is not available", ABOUT_BLANK
         ) from error
 
     report = build_accuracy_report(days, cutoff_time, forecasts, actuals)
-    coverage = build_band_coverage(days, cutoff_time, forecasts, actuals)
-    return _to_response(report, coverage)
+    grid = build_error_grid(days, cutoff_time, forecasts, actuals)
+    horizon = error_by_horizon(
+        window_start, window_end, all_forecasts, actuals, decision_forecasts=forecasts
+    )
+    coverage = build_band_coverage(days, cutoff_time, band_forecasts, band_actuals)
+    return _to_response(report, grid, horizon, coverage)

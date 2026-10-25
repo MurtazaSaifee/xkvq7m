@@ -4,6 +4,7 @@ import { useDecisionSnapshotQuery, useMetaQuery } from "../api/queries";
 import { buildChartOption, CHART_COLORS } from "../decision/chartOption";
 import { deliveryDaysBetween } from "../decision/days";
 import { useDecisionCutoff } from "../decision/DecisionCutoffContext";
+import { dayFromSearch, searchForDay } from "../decision/dayQuery";
 import { formatDay, outlookSentence } from "../format";
 import { prefersReducedMotion } from "../motion";
 import { CutoffPicker } from "./CutoffPicker";
@@ -36,16 +37,28 @@ function Legend({ hasBand }: { hasBand: boolean }) {
   );
 }
 
+/** Writes the chosen delivery day into the URL, keeping the cutoff and the view as they are. */
+function writeDayToUrl(day: string) {
+  const url = new URL(window.location.href);
+  url.search = searchForDay(window.location.search, day);
+  window.history.replaceState(window.history.state, "", url);
+}
+
 export function DecisionView() {
   const meta = useMetaQuery();
   const { cutoff } = useDecisionCutoff();
-  const [pickedDay, setPickedDay] = useState<string | null>(null);
+  // The day starts from the URL, so a shared link opens on the day it names.
+  const [pickedDay, setPickedDay] = useState<string | null>(() =>
+    dayFromSearch(window.location.search),
+  );
 
   const deliveryDays = meta.data
     ? deliveryDaysBetween(meta.data.delivery_days.first, meta.data.delivery_days.last)
     : [];
-  // The view opens on the latest delivery day in scope, so it reads as today's decision.
-  const selectedDay = pickedDay ?? meta.data?.delivery_days.last ?? null;
+  // A day outside the scope falls back to the latest delivery day, so the view reads as today's decision.
+  const latestDay = meta.data?.delivery_days.last ?? null;
+  const selectedDay =
+    pickedDay !== null && deliveryDays.includes(pickedDay) ? pickedDay : latestDay;
   const snapshot = useDecisionSnapshotQuery(selectedDay, cutoff);
   const option = useMemo(
     () => (snapshot.data ? buildChartOption(snapshot.data, prefersReducedMotion()) : null),
@@ -66,7 +79,10 @@ export function DecisionView() {
         <DeliveryDayPicker
           days={deliveryDays}
           value={selectedDay}
-          onChange={(day) => setPickedDay(day)}
+          onChange={(day) => {
+            setPickedDay(day);
+            writeDayToUrl(day);
+          }}
         />
       )}
       <CutoffPicker />

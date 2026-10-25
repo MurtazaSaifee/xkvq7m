@@ -375,6 +375,19 @@
           },
           "band_coverage": {
             "$ref": "#/components/schemas/BandCoverageResponse"
+          },
+          "heatmap": {
+            "$ref": "#/components/schemas/ErrorHeatmapResponse"
+          },
+          "worst_days": {
+            "items": {
+              "$ref": "#/components/schemas/WorstDayResponse"
+            },
+            "type": "array",
+            "title": "Worst Days"
+          },
+          "horizon_curve": {
+            "$ref": "#/components/schemas/HorizonCurveResponse"
           }
         },
         "type": "object",
@@ -383,7 +396,10 @@
           "delivery_days",
           "summary",
           "histogram",
-          "band_coverage"
+          "band_coverage",
+          "heatmap",
+          "worst_days",
+          "horizon_curve"
         ],
         "title": "AccuracyResponse"
       },
@@ -709,6 +725,22 @@
         "title": "ErrorBinResponse",
         "description": "One bin: the lower edge is included and the upper edge excluded, except for the last bin."
       },
+      "ErrorHeatmapResponse": {
+        "properties": {
+          "cells": {
+            "items": {
+              "$ref": "#/components/schemas/HeatmapCellResponse"
+            },
+            "type": "array",
+            "title": "Cells"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cells"
+        ],
+        "title": "ErrorHeatmapResponse"
+      },
       "ErrorHistogramResponse": {
         "properties": {
           "bin_width_mw": {
@@ -752,7 +784,7 @@
           "history_days"
         ],
         "title": "ExpectedErrorBandResponse",
-        "description": "The band for the delivery day: P10 and P90 of the hourly decision-forecast errors (forecast\nminus actual, MW) over the 14 delivery days before it, at the same cutoff. A band needs at least\n7 of those days with measured errors."
+        "description": "The band for the delivery day: P10 and P90 of the hourly decision-forecast errors (forecast\nminus actual, MW) over the 14 delivery days that end two days before it (D-15 to D-2), at the\nsame cutoff. A band needs at least 7 of those days with measured errors."
       },
       "HealthResponse": {
         "properties": {
@@ -767,6 +799,137 @@
           "status"
         ],
         "title": "HealthResponse"
+      },
+      "HeatmapCellResponse": {
+        "properties": {
+          "delivery_day": {
+            "type": "string",
+            "format": "date",
+            "title": "Delivery Day"
+          },
+          "hour": {
+            "type": "integer",
+            "title": "Hour"
+          },
+          "error_mw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Mw"
+          }
+        },
+        "type": "object",
+        "required": [
+          "delivery_day",
+          "hour",
+          "error_mw"
+        ],
+        "title": "HeatmapCellResponse",
+        "description": "The decision forecast error for one delivery day and one UK hour of day (0 to 23), in MW.\n``error_mw`` is null where that hour cannot be measured."
+      },
+      "HorizonBucketResponse": {
+        "properties": {
+          "lower_hours": {
+            "type": "integer",
+            "title": "Lower Hours"
+          },
+          "upper_hours": {
+            "type": "integer",
+            "title": "Upper Hours"
+          },
+          "mae_mw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mae Mw"
+          },
+          "bias_mw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bias Mw"
+          },
+          "sample_count": {
+            "type": "integer",
+            "title": "Sample Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lower_hours",
+          "upper_hours",
+          "mae_mw",
+          "bias_mw",
+          "sample_count"
+        ],
+        "title": "HorizonBucketResponse",
+        "description": "Forecasts whose horizon is in (lower_hours, upper_hours]. MAE and bias are in MW and are null\nwhen the bucket has no measured forecast, in which case the sample count is zero."
+      },
+      "HorizonCurveResponse": {
+        "properties": {
+          "buckets": {
+            "items": {
+              "$ref": "#/components/schemas/HorizonBucketResponse"
+            },
+            "type": "array",
+            "title": "Buckets"
+          },
+          "excluded_no_actual": {
+            "type": "integer",
+            "title": "Excluded No Actual"
+          },
+          "decision_horizon_range_hours": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HorizonRangeResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "buckets",
+          "excluded_no_actual",
+          "decision_horizon_range_hours"
+        ],
+        "title": "HorizonCurveResponse",
+        "description": "Error by forecast horizon over every forecast whose target time is in scope, not only the\ndecision forecasts. Buckets are 1 hour wide, from 1 hour up to the longest horizon in scope.\n``decision_horizon_range_hours`` is the shortest and longest horizon of the decision forecasts\nat the cutoff, so the curve can mark where the desk's decisions sit."
+      },
+      "HorizonRangeResponse": {
+        "properties": {
+          "min_hours": {
+            "type": "number",
+            "title": "Min Hours"
+          },
+          "max_hours": {
+            "type": "number",
+            "title": "Max Hours"
+          }
+        },
+        "type": "object",
+        "required": [
+          "min_hours",
+          "max_hours"
+        ],
+        "title": "HorizonRangeResponse"
       },
       "HourResponse": {
         "properties": {
@@ -984,6 +1147,41 @@
           "row_count"
         ],
         "title": "TargetCoverageResponse"
+      },
+      "WorstDayResponse": {
+        "properties": {
+          "delivery_day": {
+            "type": "string",
+            "format": "date",
+            "title": "Delivery Day"
+          },
+          "error_mwh": {
+            "type": "number",
+            "title": "Error Mwh"
+          },
+          "forecast_mwh": {
+            "type": "number",
+            "title": "Forecast Mwh"
+          },
+          "actual_mwh": {
+            "type": "number",
+            "title": "Actual Mwh"
+          },
+          "paired_hours": {
+            "type": "integer",
+            "title": "Paired Hours"
+          }
+        },
+        "type": "object",
+        "required": [
+          "delivery_day",
+          "error_mwh",
+          "forecast_mwh",
+          "actual_mwh",
+          "paired_hours"
+        ],
+        "title": "WorstDayResponse",
+        "description": "A delivery day ranked by the absolute value of its energy error. Energies are in MWh, and the\nerror is forecast minus actual, so a positive error means wind was over-forecast."
       }
     }
   }

@@ -187,3 +187,135 @@ async def test_openapi_documents_the_accuracy_route_and_its_cutoff_parameter():
     operation = document["paths"]["/api/v1/accuracy"]["get"]
     assert {p["name"] for p in operation["parameters"]} == {"cutoff"}
     assert PROBLEM_MEDIA_TYPE in operation["responses"]["503"]["content"]
+
+
+async def test_the_heatmap_has_one_cell_per_delivery_day_and_uk_hour(api: httpx.AsyncClient):
+    body = await _accuracy(api)
+
+    cells = body["heatmap"]["cells"]
+    assert len(cells) == 31 * 24
+    assert {tuple(sorted(cell)) for cell in cells} == {("delivery_day", "error_mw", "hour")}
+    assert {cell["hour"] for cell in cells} == set(range(24))
+
+
+async def test_each_heatmap_cell_is_the_decision_forecast_error_for_that_hour(
+    api: httpx.AsyncClient,
+):
+    body = await _accuracy(api)
+
+    # 2 Jan, hour by hour, from the same hand-computed hours as the summary test: forecast minus
+    # actual. Hours 06:00 (no actual) and 07:00 (no decision forecast at 09:20) are null.
+    first_day = {
+        c["hour"]: c["error_mw"]
+        for c in body["heatmap"]["cells"]
+        if c["delivery_day"] == "2026-01-02"
+    }
+    assert [first_day[hour] for hour in range(8)] == [900, -500, 0, 1000, -500, 400, None, None]
+    # A day with no forecast at all is null in every hour.
+    third_day = [
+        c["error_mw"] for c in body["heatmap"]["cells"] if c["delivery_day"] == "2026-01-03"
+    ]
+    assert third_day == [None] * 24
+
+
+async def test_the_worst_days_give_the_energy_error_of_each_ranked_day(api: httpx.AsyncClient):
+    body = await _accuracy(api)
+
+    # Only 2 Jan has a measured hour. Its energy error is the sum of the six hourly errors:
+    # 93,500 MWh forecast minus 92,200 MWh actual, from six paired hours.
+    assert body["worst_days"] == [
+        {
+            "delivery_day": "2026-01-02",
+            "error_mwh": 1300,
+            "forecast_mwh": 93500,
+            "actual_mwh": 92200,
+            "paired_hours": 6,
+        }
+    ]
+
+
+# Horizon curve. Every fixture forecast for 2 Jan is published at 07:30 on 1 Jan, except the 07:00
+# row, published at 09:30. A target at 00:00 is therefore 16.5 h ahead, and each hour adds one.
+
+
+async def _horizon(api: httpx.AsyncClient, cutoff: str = "09:20") -> dict[str, Any]:
+    curve: dict[str, Any] = (await _accuracy(api, cutoff))["horizon_curve"]
+    return curve
+
+
+async def test_each_horizon_bucket_reports_its_mae_bias_and_sample_count(api: httpx.AsyncClient):
+    buckets = {b["upper_hours"]: b for b in (await _horizon(api))["buckets"]}
+
+    # Bucket 17 holds (16, 17] h, so the 00:00 target at 16.5 h. Errors: 900, -500, 0, 1000, -500,
+    # 400 for the targets 00:00 to 05:00, at 16.5 h to 21.5 h.
+    assert buckets[17] == {
+        "lower_hours": 16,
+        "upper_hours": 17,
+        "mae_mw": 900,
+        "bias_mw": 900,
+        "sample_count": 1,
+    }
+    assert (buckets[18]["mae_mw"], buckets[18]["bias_mw"]) == (500, -500)
+    assert (buckets[19]["mae_mw"], buckets[19]["bias_mw"]) == (0, 0)
+    assert (buckets[20]["mae_mw"], buckets[20]["bias_mw"]) == (1000, 1000)
+    assert (buckets[21]["mae_mw"], buckets[21]["bias_mw"]) == (500, -500)
+    assert (buckets[22]["mae_mw"], buckets[22]["bias_mw"], buckets[22]["sample_count"]) == (
+        400,
+        400,
+        1,
+    )
+
+
+async def test_buckets_run_from_one_hour_with_empty_ones_unmeasured(api: httpx.AsyncClient):
+    buckets = (await _horizon(api))["buckets"]
+
+    assert [b["upper_hours"] for b in buckets] == list(range(1, 24))
+    assert buckets[0] == {
+        "lower_hours": 0,
+        "upper_hours": 1,
+        "mae_mw": None,
+        "bias_mw": None,
+        "sample_count": 0,
+    }
+    # The 06:00 target is 22.5 h ahead with no actual, so bucket 23 is listed but unmeasured.
+    assert (buckets[-1]["sample_count"], buckets[-1]["mae_mw"]) == (0, None)
+
+
+async def test_forecasts_without_an_actual_are_counted_as_excluded_not_dropped(
+    api: httpx.AsyncClient,
+):
+    curve = await _horizon(api)
+
+    # The 06:00 and 07:00 forecasts have no actual, so six of the eight forecasts are measured.
+    assert curve["excluded_no_actual"] == 2
+    assert sum(b["sample_count"] for b in curve["buckets"]) == 6
+
+
+async def test_the_decision_horizon_range_comes_from_the_decision_forecasts_at_the_cutoff(
+    api: httpx.AsyncClient,
+):
+    # At 09:20 the decision forecasts are the 07:30 run for 00:00 to 06:00: 16.5 h to 22.5 h.
+    assert (await _horizon(api, "09:20"))["decision_horizon_range_hours"] == {
+        "min_hours": 16.5,
+        "max_hours": 22.5,
+    }
+    # At 09:30 the 07:00 target is taken from the 09:30 run, 21.5 h ahead, inside the same range.
+    assert (await _horizon(api, "09:30"))["decision_horizon_range_hours"] == {
+        "min_hours": 16.5,
+        "max_hours": 22.5,
+    }
+
+
+async def test_the_decision_horizon_range_is_null_when_no_decision_forecast_exists(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    path = _write_snapshot(tmp_path / "early.duckdb", date(2026, 1, 2), date(2026, 2, 1))
+    monkeypatch.setenv(SNAPSHOT_PATH_ENV, str(path))
+    transport = httpx.ASGITransport(app=create_app())
+
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        # 00:01 on the decision day is before the 07:30 run is published, so nothing is selected.
+        response = await client.get("/api/v1/accuracy", params={"cutoff": "00:01"})
+
+    assert response.status_code == 200
+    assert response.json()["horizon_curve"]["decision_horizon_range_hours"] is None
