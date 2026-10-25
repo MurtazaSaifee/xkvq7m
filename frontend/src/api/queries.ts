@@ -1,9 +1,23 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { fetchHealth, fetchMeta } from "./client";
+import { fetchDecisionSnapshot, fetchHealth, fetchMeta } from "./client";
 
 export const healthQueryKey = ["health"] as const;
 export const metaQueryKey = ["meta"] as const;
+
+export function decisionSnapshotQueryKey(deliveryDay: string, cutoff: string) {
+  return ["decision-snapshot", deliveryDay, cutoff] as const;
+}
+
+// The snapshot is fixed for a given day and cutoff, so it is kept until the page is reloaded.
+export function useDecisionSnapshotQuery(deliveryDay: string | null, cutoff: string) {
+  return useQuery({
+    queryKey: decisionSnapshotQueryKey(deliveryDay ?? "", cutoff),
+    queryFn: ({ signal }) => fetchDecisionSnapshot(deliveryDay ?? "", cutoff, signal),
+    enabled: deliveryDay !== null,
+    staleTime: Infinity,
+  });
+}
 
 export function useHealthQuery() {
   return useQuery({
