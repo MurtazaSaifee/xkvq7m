@@ -1,0 +1,7 @@
+from fastapi import APIRouter
+
+from app.api.v1 import health
+
+# Every v1 router is included here and mounted under /api/v1 by app.main.
+api_router = APIRouter()
+api_router.include_router(health.router, tags=["health"])
