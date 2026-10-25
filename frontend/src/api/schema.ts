@@ -83,6 +83,9 @@ export interface components {
             delivery_days: components["schemas"]["DeliveryDayRangeResponse"];
             summary: components["schemas"]["AccuracySummaryResponse"];
             histogram: components["schemas"]["ErrorHistogramResponse"];
+            heatmap: components["schemas"]["ErrorHeatmapResponse"];
+            /** Worst Days */
+            worst_days: components["schemas"]["WorstDayResponse"][];
         };
         /**
          * AccuracySummaryResponse
@@ -187,6 +190,11 @@ export interface components {
             /** Count */
             count: number;
         };
+        /** ErrorHeatmapResponse */
+        ErrorHeatmapResponse: {
+            /** Cells */
+            cells: components["schemas"]["HeatmapCellResponse"][];
+        };
         /** ErrorHistogramResponse */
         ErrorHistogramResponse: {
             /** Bin Width Mw */
@@ -201,6 +209,22 @@ export interface components {
              * @constant
              */
             status: "ok";
+        };
+        /**
+         * HeatmapCellResponse
+         * @description The decision forecast error for one delivery day and one UK hour of day (0 to 23), in MW.
+         *     ``error_mw`` is null where that hour cannot be measured.
+         */
+        HeatmapCellResponse: {
+            /**
+             * Delivery Day
+             * Format: date
+             */
+            delivery_day: string;
+            /** Hour */
+            hour: number;
+            /** Error Mw */
+            error_mw: number | null;
         };
         /**
          * HourResponse
@@ -257,6 +281,26 @@ export interface components {
             last_target_time: string | null;
             /** Row Count */
             row_count: number;
+        };
+        /**
+         * WorstDayResponse
+         * @description A delivery day ranked by the absolute value of its energy error. Energies are in MWh, and the
+         *     error is forecast minus actual, so a positive error means wind was over-forecast.
+         */
+        WorstDayResponse: {
+            /**
+             * Delivery Day
+             * Format: date
+             */
+            delivery_day: string;
+            /** Error Mwh */
+            error_mwh: number;
+            /** Forecast Mwh */
+            forecast_mwh: number;
+            /** Actual Mwh */
+            actual_mwh: number;
+            /** Paired Hours */
+            paired_hours: number;
         };
     };
     responses: never;

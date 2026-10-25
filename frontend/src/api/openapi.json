@@ -372,6 +372,16 @@
           },
           "histogram": {
             "$ref": "#/components/schemas/ErrorHistogramResponse"
+          },
+          "heatmap": {
+            "$ref": "#/components/schemas/ErrorHeatmapResponse"
+          },
+          "worst_days": {
+            "items": {
+              "$ref": "#/components/schemas/WorstDayResponse"
+            },
+            "type": "array",
+            "title": "Worst Days"
           }
         },
         "type": "object",
@@ -379,7 +389,9 @@
           "cutoff",
           "delivery_days",
           "summary",
-          "histogram"
+          "histogram",
+          "heatmap",
+          "worst_days"
         ],
         "title": "AccuracyResponse"
       },
@@ -638,6 +650,22 @@
         "title": "ErrorBinResponse",
         "description": "One bin: the lower edge is included and the upper edge excluded, except for the last bin."
       },
+      "ErrorHeatmapResponse": {
+        "properties": {
+          "cells": {
+            "items": {
+              "$ref": "#/components/schemas/HeatmapCellResponse"
+            },
+            "type": "array",
+            "title": "Cells"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cells"
+        ],
+        "title": "ErrorHeatmapResponse"
+      },
       "ErrorHistogramResponse": {
         "properties": {
           "bin_width_mw": {
@@ -672,6 +700,38 @@
           "status"
         ],
         "title": "HealthResponse"
+      },
+      "HeatmapCellResponse": {
+        "properties": {
+          "delivery_day": {
+            "type": "string",
+            "format": "date",
+            "title": "Delivery Day"
+          },
+          "hour": {
+            "type": "integer",
+            "title": "Hour"
+          },
+          "error_mw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Mw"
+          }
+        },
+        "type": "object",
+        "required": [
+          "delivery_day",
+          "hour",
+          "error_mw"
+        ],
+        "title": "HeatmapCellResponse",
+        "description": "The decision forecast error for one delivery day and one UK hour of day (0 to 23), in MW.\n``error_mw`` is null where that hour cannot be measured."
       },
       "HourResponse": {
         "properties": {
@@ -865,6 +925,41 @@
           "row_count"
         ],
         "title": "TargetCoverageResponse"
+      },
+      "WorstDayResponse": {
+        "properties": {
+          "delivery_day": {
+            "type": "string",
+            "format": "date",
+            "title": "Delivery Day"
+          },
+          "error_mwh": {
+            "type": "number",
+            "title": "Error Mwh"
+          },
+          "forecast_mwh": {
+            "type": "number",
+            "title": "Forecast Mwh"
+          },
+          "actual_mwh": {
+            "type": "number",
+            "title": "Actual Mwh"
+          },
+          "paired_hours": {
+            "type": "integer",
+            "title": "Paired Hours"
+          }
+        },
+        "type": "object",
+        "required": [
+          "delivery_day",
+          "error_mwh",
+          "forecast_mwh",
+          "actual_mwh",
+          "paired_hours"
+        ],
+        "title": "WorstDayResponse",
+        "description": "A delivery day ranked by the absolute value of its energy error. Energies are in MWh, and the\nerror is forecast minus actual, so a positive error means wind was over-forecast."
       }
     }
   }

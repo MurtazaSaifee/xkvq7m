@@ -187,3 +187,48 @@ async def test_openapi_documents_the_accuracy_route_and_its_cutoff_parameter():
     operation = document["paths"]["/api/v1/accuracy"]["get"]
     assert {p["name"] for p in operation["parameters"]} == {"cutoff"}
     assert PROBLEM_MEDIA_TYPE in operation["responses"]["503"]["content"]
+
+
+async def test_the_heatmap_has_one_cell_per_delivery_day_and_uk_hour(api: httpx.AsyncClient):
+    body = await _accuracy(api)
+
+    cells = body["heatmap"]["cells"]
+    assert len(cells) == 31 * 24
+    assert {tuple(sorted(cell)) for cell in cells} == {("delivery_day", "error_mw", "hour")}
+    assert {cell["hour"] for cell in cells} == set(range(24))
+
+
+async def test_each_heatmap_cell_is_the_decision_forecast_error_for_that_hour(
+    api: httpx.AsyncClient,
+):
+    body = await _accuracy(api)
+
+    # 2 Jan, hour by hour, from the same hand-computed hours as the summary test: forecast minus
+    # actual. Hours 06:00 (no actual) and 07:00 (no decision forecast at 09:20) are null.
+    first_day = {
+        c["hour"]: c["error_mw"]
+        for c in body["heatmap"]["cells"]
+        if c["delivery_day"] == "2026-01-02"
+    }
+    assert [first_day[hour] for hour in range(8)] == [900, -500, 0, 1000, -500, 400, None, None]
+    # A day with no forecast at all is null in every hour.
+    third_day = [
+        c["error_mw"] for c in body["heatmap"]["cells"] if c["delivery_day"] == "2026-01-03"
+    ]
+    assert third_day == [None] * 24
+
+
+async def test_the_worst_days_give_the_energy_error_of_each_ranked_day(api: httpx.AsyncClient):
+    body = await _accuracy(api)
+
+    # Only 2 Jan has a measured hour. Its energy error is the sum of the six hourly errors:
+    # 93,500 MWh forecast minus 92,200 MWh actual, from six paired hours.
+    assert body["worst_days"] == [
+        {
+            "delivery_day": "2026-01-02",
+            "error_mwh": 1300,
+            "forecast_mwh": 93500,
+            "actual_mwh": 92200,
+            "paired_hours": 6,
+        }
+    ]

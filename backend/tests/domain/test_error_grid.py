@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from datetime import date, datetime, time, timedelta
 
 from app.domain.decision import DecisionForecast, HalfHourActual
@@ -44,7 +45,7 @@ def _flat_day(
 
 
 def _scope(
-    days_and_errors: dict[date, float],
+    days_and_errors: Mapping[date, float],
 ) -> tuple[list[DecisionForecast], list[HalfHourActual]]:
     forecasts: list[DecisionForecast] = []
     actuals: list[HalfHourActual] = []
@@ -76,7 +77,9 @@ def test_each_cell_holds_the_decision_forecast_error_for_its_delivery_day_and_uk
 def test_worst_days_rank_by_absolute_daily_energy_error_and_keep_the_sign():
     # Each hour is one hour long, so a day's energy error is the sum of its hourly errors:
     # 2 Jan is +100 MW for 24 hours (+2,400 MWh), 3 Jan is -300 MW (-7,200 MWh), 4 Jan is +50 MW.
-    forecasts, actuals = _scope({date(2026, 1, 2): 100, date(2026, 1, 3): -300, date(2026, 1, 4): 50})
+    forecasts, actuals = _scope(
+        {date(2026, 1, 2): 100, date(2026, 1, 3): -300, date(2026, 1, 4): 50}
+    )
     days = [date(2026, 1, 2), date(2026, 1, 3), date(2026, 1, 4)]
 
     grid = build_error_grid(days, CUTOFF, forecasts, actuals, worst_count=2)

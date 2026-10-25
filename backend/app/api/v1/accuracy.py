@@ -21,6 +21,7 @@ from app.domain.accuracy import (
     delivery_days_between,
 )
 from app.domain.decision import CUTOFF_PATTERN, DEFAULT_CUTOFF, parse_cutoff
+from app.domain.error_grid import ErrorGrid, build_error_grid
 from app.repository.snapshot import SnapshotRepository, SnapshotUnavailableError
 
 router = APIRouter()
@@ -69,14 +70,40 @@ class ErrorHistogramResponse(BaseModel):
     bins: list[ErrorBinResponse]
 
 
+class HeatmapCellResponse(BaseModel):
+    """The decision forecast error for one delivery day and one UK hour of day (0 to 23), in MW.
+    ``error_mw`` is null where that hour cannot be measured."""
+
+    delivery_day: date
+    hour: int
+    error_mw: float | None
+
+
+class ErrorHeatmapResponse(BaseModel):
+    cells: list[HeatmapCellResponse]
+
+
+class WorstDayResponse(BaseModel):
+    """A delivery day ranked by the absolute value of its energy error. Energies are in MWh, and the
+    error is forecast minus actual, so a positive error means wind was over-forecast."""
+
+    delivery_day: date
+    error_mwh: float
+    forecast_mwh: float
+    actual_mwh: float
+    paired_hours: int
+
+
 class AccuracyResponse(BaseModel):
     cutoff: str
     delivery_days: DeliveryDayRangeResponse
     summary: AccuracySummaryResponse
     histogram: ErrorHistogramResponse
+    heatmap: ErrorHeatmapResponse
+    worst_days: list[WorstDayResponse]
 
 
-def _to_response(report: AccuracyReport) -> AccuracyResponse:
+def _to_response(report: AccuracyReport, grid: ErrorGrid) -> AccuracyResponse:
     summary = report.summary
     return AccuracyResponse(
         cutoff=report.cutoff.strftime("%H:%M"),
@@ -100,6 +127,24 @@ def _to_response(report: AccuracyReport) -> AccuracyResponse:
                 for b in report.histogram
             ],
         ),
+        heatmap=ErrorHeatmapResponse(
+            cells=[
+                HeatmapCellResponse(
+                    delivery_day=cell.delivery_day, hour=cell.hour, error_mw=cell.error_mw
+                )
+                for cell in grid.heatmap
+            ]
+        ),
+        worst_days=[
+            WorstDayResponse(
+                delivery_day=worst.delivery_day,
+                error_mwh=worst.error_mwh,
+                forecast_mwh=worst.forecast_mwh,
+                actual_mwh=worst.actual_mwh,
+                paired_hours=worst.paired_hours,
+            )
+            for worst in grid.worst_days
+        ],
     )
 
 
@@ -135,4 +180,6 @@ def accuracy(
             503, "Service Unavailable", "Data snapshot is not available", ABOUT_BLANK
         ) from error
 
-    return _to_response(build_accuracy_report(days, cutoff_time, forecasts, actuals))
+    report = build_accuracy_report(days, cutoff_time, forecasts, actuals)
+    grid = build_error_grid(days, cutoff_time, forecasts, actuals)
+    return _to_response(report, grid)

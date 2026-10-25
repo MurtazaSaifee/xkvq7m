@@ -67,7 +67,8 @@ def build_error_grid(
     """The heatmap and the worst days for ``days`` at ``cutoff``.
 
     The worst days are the ``worst_count`` delivery days with the largest absolute energy error.
-    Ties go to the earlier day. A day with no measured hour has no energy error, so it is not ranked.
+    Ties go to the earlier day. A day with no measured hour has no energy error, so it is not
+    ranked.
     """
     day_of_target = {hour: day for day in days for hour in delivery_day_hours(day)}
     forecasts_by_day: dict[date, list[DecisionForecast]] = {day: [] for day in days}
