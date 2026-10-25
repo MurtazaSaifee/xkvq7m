@@ -85,6 +85,8 @@ The committed snapshot holds 26,864 forecast rows received. Of these, 5,521 were
 
 The band is walk-forward. D-1 and later are never read, because the decision day is still in progress at the cutoff. Tests check this.
 
+**Error by horizon.** The horizon of a forecast is the time from its publish time to its target time. The curve groups forecasts into 1-hour buckets, so bucket k holds horizons in (k−1, k] hours. It covers every forecast in scope, not only the decision forecasts, and deliberately includes those published after the cutoff, to show what waiting would buy. The cutoff's decision-horizon range is marked on the chart (16.5 to 39.5 hours at 09:20).
+
 **Headline figures at 09:20.** From `GET /api/v1/accuracy?cutoff=09:20`, over 744 target hours of 2 Jan to 1 Feb 2026. All 744 hours are measured.
 
 | Figure | Value |
@@ -111,16 +113,16 @@ Both rules measure the same 744 hours. The choice of alignment moves MAE by unde
 
 ## Testing and CI
 
-`make test` runs 230 backend tests (pytest) and 123 frontend tests in 17 files (Vitest). `make lint` runs ruff, pyright, eslint and tsc.
+`make test` runs 238 backend tests (pytest) and 136 frontend tests in 18 files (Vitest). `make lint` runs ruff, pyright, eslint and tsc.
 
 What is tested:
 
-- **Decision selection:** a forecast published exactly at the cutoff is used, one a minute later is not, a target with nothing published before the cutoff is a gap, and when several runs cover a target the latest before the cutoff wins. Each target uses the cutoff of its own delivery day. Clock-change days have 23 and 25 hours.
+- **Decision selection:** a forecast published exactly at the cutoff is used, one a minute later is not, a target with nothing published at or before the cutoff is a gap, and when several runs cover a target the latest before the cutoff wins. Each target uses the cutoff of its own delivery day. Clock-change days have 23 and 25 hours.
 - **Alignment:** the hourly mean of two half-hours, a missing half-hour gives no actual, and the top-of-hour sensitivity rule.
 - **Metrics:** values checked against hand-computed fixtures, P90 interpolation, nMAE with a zero mean, histogram edges and the closed last bin, and excluded hours counted by reason.
 - **Band:** leakage (changing D-1 or any later day does not move the band), the 7-day minimum, inclusive band edges, pooled percentiles, and errors older than the lookback ignored.
 - **Ingestion:** recorded Elexon responses with no network. Malformed rows, duplicates and excluded forecasts are counted, and a bad response leaves no snapshot behind.
-- **API contract:** httpx against a fixture DuckDB, with RFC 7807 errors (422 for bad parameters, 503 when there is no snapshot).
+- **API contract:** httpx against a fixture DuckDB, with RFC 7807 errors (422 for bad parameters, 503 when there is no snapshot, and a generic 500 for unexpected errors).
 - **Frontend:** Testing Library component tests for the views, the cutoff picker, the KPI tiles and the worst-days table, plus unit tests for the chart option builders.
 
 Not covered: end-to-end tests, and there is no coverage target.
@@ -145,4 +147,4 @@ Built with Claude Code (Anthropic) as an AI pair programmer for research, scaffo
 - **Band shape:** the band is one P10 to P90 range for every hour. It is not conditioned on forecast level, which is the next step.
 - **Snapshot, not a feed:** the data is a fixed window. A production version would run `make ingest` on a schedule over a rolling window instead (ADR-0001).
 - **Monitoring:** there is no error monitoring. Sentry or a similar service is the next addition.
-- **Scope:** the snapshot is a fixed window of delivery days 2 Jan to 1 Feb 2026, so it covers January 2026 only. It covers national wind only.
+- **Scope:** the snapshot is a fixed window of delivery days 2 Jan to 1 Feb 2026, so it covers purchase decisions made in January 2026 (delivery days 2 Jan to 1 Feb 2026), with December 2025 used only as band warm-up. It covers national wind only.
