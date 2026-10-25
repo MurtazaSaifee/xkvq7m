@@ -38,7 +38,8 @@ export function BandCoveragePanel({ coverage }: { coverage: BandCoverage }) {
       </p>
       <p className="text-sm text-muted">
         Each day's band is the P10 to P90 of the forecast errors over the {coverage.lookback_days}{" "}
-        delivery days before it, at this cutoff. It uses no later day.
+        delivery days that end two days before it, at this cutoff. It uses no error from the day
+        before it or any later day.
       </p>
     </section>
   );

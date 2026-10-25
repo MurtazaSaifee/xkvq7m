@@ -54,8 +54,8 @@ class HourResponse(BaseModel):
 
 class ExpectedErrorBandResponse(BaseModel):
     """The band for the delivery day: P10 and P90 of the hourly decision-forecast errors (forecast
-    minus actual, MW) over the 14 delivery days before it, at the same cutoff. A band needs at least
-    7 of those days with measured errors."""
+    minus actual, MW) over the 14 delivery days that end two days before it (D-15 to D-2), at the
+    same cutoff. A band needs at least 7 of those days with measured errors."""
 
     lower_error_mw: float
     upper_error_mw: float
@@ -180,8 +180,8 @@ def decision_snapshot(
             cutoff_time = parse_cutoff(cutoff)
         except ValueError as error:
             raise ProblemError(422, "Invalid request", str(error), INVALID_PARAMETER) from error
-        # The band reads the fourteen days before the delivery day, so their forecasts and actuals
-        # are fetched too. Nothing after the delivery day is needed.
+        # The band reads the fourteen days that end two days before the delivery day, so their
+        # forecasts and actuals are fetched too. The decision day itself is never read by the band.
         days = [*lookback_days(delivery_day), delivery_day]
         forecasts = repository.decision_forecasts_at(decision_targets(days, cutoff_time))
         actuals = repository.actuals_between(*accuracy_window(days))

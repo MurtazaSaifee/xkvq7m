@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Query
@@ -25,6 +25,7 @@ from app.domain.band import (
     BAND_MIN_HISTORY_DAYS,
     BandCoverage,
     build_band_coverage,
+    lookback_days,
 )
 from app.domain.decision import CUTOFF_PATTERN, DEFAULT_CUTOFF, parse_cutoff
 from app.repository.snapshot import SnapshotRepository, SnapshotUnavailableError
@@ -163,9 +164,9 @@ def accuracy(
         repository = SnapshotRepository(snapshot_path())
         first_day, last_day = repository.delivery_days()
         days = delivery_days_between(first_day, last_day)
-        # The band's warm-up is the fourteen days before the scope, so those days are read too.
+        # The band's warm-up is the lookback of the first scope day, so those days are read too.
         # The summary and histogram still cover only the scope days.
-        history = delivery_days_between(first_day - timedelta(days=BAND_LOOKBACK_DAYS), last_day)
+        history = delivery_days_between(lookback_days(first_day)[0], last_day)
         window_start, window_end = accuracy_window(history)
         forecasts = repository.decision_forecasts_at(decision_targets(history, cutoff_time))
         actuals = repository.actuals_between(window_start, window_end)

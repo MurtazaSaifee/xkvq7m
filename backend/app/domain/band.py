@@ -1,9 +1,10 @@
 """The expected-error band: where actual generation is expected to fall, from past errors only.
 
 For delivery day D, the band is the P10 and P90 of the hourly decision-forecast errors (forecast
-minus actual, MW) over the BAND_LOOKBACK_DAYS delivery days before D, at the same cutoff. Only those
-days are read, so the band never uses D or any later day. The percentiles pool every measured hour
-of those days, not a mean per day.
+minus actual, MW) over the BAND_LOOKBACK_DAYS delivery days that end BAND_LAG_DAYS days before D
+(D-15 to D-2), at the same cutoff. Those days are complete before any cutoff on the decision day
+D-1, so the band never uses D-1, D or any later day. The percentiles pool every measured hour of
+those days, not a mean per day.
 
 Error is forecast minus actual, so actual = forecast - error. The band for the actual generation of
 a decision forecast F is therefore [F - P90, F - P10].
@@ -25,6 +26,11 @@ from app.domain.decision import (
 )
 
 BAND_LOOKBACK_DAYS = 14
+# The newest day the band reads is this many days before the delivery day. The decision day D-1 is
+# still in progress at any cutoff, so its actuals are incomplete and it is never read. D-2 is
+# complete. The ingested actuals start on 19 Dec, so 2 Jan reads 19 to 31 Dec: 13 days, which is
+# still above BAND_MIN_HISTORY_DAYS.
+BAND_LAG_DAYS = 2
 # A band needs errors from at least this many past delivery days. With fewer, the day gets no band.
 BAND_MIN_HISTORY_DAYS = 7
 LOWER_PERCENTILE = 10
@@ -67,8 +73,13 @@ class BandCoverage:
 
 
 def lookback_days(day: date) -> list[date]:
-    """The delivery days the band for ``day`` may read: the fourteen before it, oldest first."""
-    return [day - timedelta(days=offset) for offset in range(BAND_LOOKBACK_DAYS, 0, -1)]
+    """The delivery days the band for ``day`` may read: the fourteen ending BAND_LAG_DAYS before it.
+
+    For 2 Jan that is 18 to 31 Dec, oldest first. Every one of them is known at any cutoff on D-1.
+    """
+    newest = BAND_LAG_DAYS
+    oldest = BAND_LAG_DAYS + BAND_LOOKBACK_DAYS - 1
+    return [day - timedelta(days=offset) for offset in range(oldest, newest - 1, -1)]
 
 
 def expected_error_band(
