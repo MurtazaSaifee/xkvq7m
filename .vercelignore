@@ -1,0 +1,19 @@
+# Never upload local secrets or Vercel's own link state (the CLI writes OIDC tokens to .env*).
+.env*
+.vercel
+
+# Local-only material and tooling, not needed to build or run the deployment.
+.claude
+.scratch
+.github
+docs
+backend/tests
+backend/.venv
+backend/.pytest_cache
+backend/.ruff_cache
+frontend/node_modules
+frontend/dist
+**/__pycache__
+Dockerfile
+docker-compose.yml
+.dockerignore
