@@ -1,15 +1,22 @@
 import * as echarts from "echarts/core";
-import { LineChart } from "echarts/charts";
+import { BarChart, LineChart } from "echarts/charts";
 import { DataZoomComponent, GridComponent, TooltipComponent } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
 import type { EChartsOption } from "echarts";
 import { useEffect, useRef } from "react";
 
-// Only the parts the decision chart uses are registered, to keep the bundle small.
-echarts.use([LineChart, GridComponent, TooltipComponent, DataZoomComponent, CanvasRenderer]);
+// Only the parts the charts use are registered, to keep the bundle small.
+echarts.use([
+  LineChart,
+  BarChart,
+  GridComponent,
+  TooltipComponent,
+  DataZoomComponent,
+  CanvasRenderer,
+]);
 
 /** An ECharts instance that follows its container's size and is disposed on unmount. */
-export function DecisionChart({ option, label }: { option: EChartsOption; label: string }) {
+export function EChart({ option, label }: { option: EChartsOption; label: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
 
