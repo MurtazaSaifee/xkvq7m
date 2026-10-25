@@ -99,13 +99,15 @@ The band is walk-forward. D-1 and later are never read, because the decision day
 
 **Alignment sensitivity check.** The headline figures use the hourly mean. The check repeats them with the other rule, which compares each hour with the half-hour starting at h:00 alone. Both rules use the same decision forecasts. Run it with `make sensitivity`.
 
-| Rule | Hourly mean (headline) | Top of hour | Difference |
+| Metric | Hourly mean (headline) | Top of hour | Difference |
 |---|---|---|---|
-| MAE | 2,038.9 | 2,022.5 | −16.4 |
-| Bias | 1,747.9 | 1,745.9 | −1.9 |
-| RMSE | 2,504.8 | 2,497.4 | −7.4 |
+| MAE (MW) | 2,038.9 | 2,022.5 | −16.4 |
+| Bias (MW) | 1,747.9 | 1,745.9 | −1.9 |
+| RMSE (MW) | 2,504.8 | 2,497.4 | −7.4 |
+| P90 (MW) | 4,097.9 | 4,154.4 | +56.5 |
+| nMAE (%) | 18.1 | 17.9 | −0.1 |
 
-All figures are in MW, over the same 744 hours under both rules. The choice of alignment barely moves the figures: the MAE changes by under 1%.
+Both rules measure the same 744 hours. The choice of alignment moves MAE by under 1% and P90 by about 1.4%.
 
 ## Testing and CI
 
