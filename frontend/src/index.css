@@ -1,1 +1,22 @@
 @import "tailwindcss";
+
+/* Design tokens. Ink on paper; the two forecast-error directions use distinct hues, not just sign. */
+@theme {
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+
+  --color-paper: #f7f7f4;
+  --color-surface: #ffffff;
+  --color-ink: #1c2330;
+  --color-muted: #5b6372;
+  --color-rule: #e2e2dc;
+  --color-forecast: #2f6690;
+  --color-over: #b5532a;
+  --color-under: #2b7a78;
+  --color-danger: #a33a3a;
+}
+
+html {
+  background: #f7f7f4;
+  color: #1c2330;
+  font-feature-settings: "tnum" 0;
+}

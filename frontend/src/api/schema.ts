@@ -38,10 +38,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/decision-snapshot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Decision snapshot for one delivery day, with day KPIs */
+        get: operations["decision_snapshot_api_v1_decision_snapshot_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ActualResponse */
+        ActualResponse: {
+            /**
+             * Target Time
+             * Format: date-time
+             */
+            target_time: string;
+            /** Generation Mw */
+            generation_mw: number | null;
+        };
+        /** DecisionSnapshotResponse */
+        DecisionSnapshotResponse: {
+            /**
+             * Delivery Day
+             * Format: date
+             */
+            delivery_day: string;
+            /**
+             * Decision Day
+             * Format: date
+             */
+            decision_day: string;
+            /** Cutoff */
+            cutoff: string;
+            /**
+             * Cutoff Time
+             * Format: date-time
+             */
+            cutoff_time: string;
+            /** Forecast Run Publish Time */
+            forecast_run_publish_time: string | null;
+            /** Hours */
+            hours: components["schemas"]["HourResponse"][];
+            /** Actuals */
+            actuals: components["schemas"]["ActualResponse"][];
+            kpis: components["schemas"]["KpisResponse"];
+        };
         /** DeliveryDaysResponse */
         DeliveryDaysResponse: {
             /**
@@ -62,6 +116,40 @@ export interface components {
              * @constant
              */
             status: "ok";
+        };
+        /**
+         * HourResponse
+         * @description One delivery hour: decision forecast, aligned actual and forecast error, all in MW.
+         */
+        HourResponse: {
+            /**
+             * Target Time
+             * Format: date-time
+             */
+            target_time: string;
+            /** Publish Time */
+            publish_time: string | null;
+            /** Forecast Mw */
+            forecast_mw: number | null;
+            /** Actual Mw */
+            actual_mw: number | null;
+            /** Error Mw */
+            error_mw: number | null;
+        };
+        /** KpisResponse */
+        KpisResponse: {
+            /** Forecast Mwh */
+            forecast_mwh: number | null;
+            /** Actual Mwh */
+            actual_mwh: number | null;
+            /** Error Mwh */
+            error_mwh: number | null;
+            /** Paired Hours */
+            paired_hours: number;
+            /** Missing Forecast Hours */
+            missing_forecast_hours: number;
+            /** Missing Actual Hours */
+            missing_actual_hours: number;
         };
         /** MetaResponse */
         MetaResponse: {
@@ -130,6 +218,85 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MetaResponse"];
+                };
+            };
+        };
+    };
+    decision_snapshot_api_v1_decision_snapshot_get: {
+        parameters: {
+            query: {
+                /** @description UK delivery day, YYYY-MM-DD, within the snapshot's delivery window. */
+                delivery_day: string;
+                /** @description Decision cutoff as HH:MM UK time on the decision day (the day before). */
+                cutoff?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionSnapshotResponse"];
+                };
+            };
+            /** @description Invalid or out-of-range parameters */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /**
+                         * Type
+                         * @default about:blank
+                         */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance: string;
+                        /** Errors */
+                        errors?: {
+                            [key: string]: unknown;
+                        }[] | null;
+                    };
+                };
+            };
+            /** @description The data snapshot is not available */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /**
+                         * Type
+                         * @default about:blank
+                         */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance: string;
+                        /** Errors */
+                        errors?: {
+                            [key: string]: unknown;
+                        }[] | null;
+                    };
                 };
             };
         };

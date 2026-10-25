@@ -46,10 +46,260 @@
           }
         }
       }
+    },
+    "/api/v1/decision-snapshot": {
+      "get": {
+        "tags": [
+          "decision"
+        ],
+        "summary": "Decision snapshot for one delivery day, with day KPIs",
+        "operationId": "decision_snapshot_api_v1_decision_snapshot_get",
+        "parameters": [
+          {
+            "name": "delivery_day",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "UK delivery day, YYYY-MM-DD, within the snapshot's delivery window.",
+              "title": "Delivery Day"
+            },
+            "description": "UK delivery day, YYYY-MM-DD, within the snapshot's delivery window."
+          },
+          {
+            "name": "cutoff",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+              "description": "Decision cutoff as HH:MM UK time on the decision day (the day before).",
+              "default": "09:20",
+              "title": "Cutoff"
+            },
+            "description": "Decision cutoff as HH:MM UK time on the decision day (the day before)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionSnapshotResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid or out-of-range parameters",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "The body of an error response. ``errors`` lists each invalid parameter, if any.",
+                  "properties": {
+                    "type": {
+                      "default": "about:blank",
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "title": "Instance",
+                      "type": "string"
+                    },
+                    "errors": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "additionalProperties": true,
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Errors"
+                    }
+                  },
+                  "required": [
+                    "title",
+                    "status",
+                    "detail",
+                    "instance"
+                  ],
+                  "title": "ProblemDetail",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The data snapshot is not available",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "The body of an error response. ``errors`` lists each invalid parameter, if any.",
+                  "properties": {
+                    "type": {
+                      "default": "about:blank",
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "title": "Instance",
+                      "type": "string"
+                    },
+                    "errors": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "additionalProperties": true,
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Errors"
+                    }
+                  },
+                  "required": [
+                    "title",
+                    "status",
+                    "detail",
+                    "instance"
+                  ],
+                  "title": "ProblemDetail",
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "ActualResponse": {
+        "properties": {
+          "target_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Target Time"
+          },
+          "generation_mw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generation Mw"
+          }
+        },
+        "type": "object",
+        "required": [
+          "target_time",
+          "generation_mw"
+        ],
+        "title": "ActualResponse"
+      },
+      "DecisionSnapshotResponse": {
+        "properties": {
+          "delivery_day": {
+            "type": "string",
+            "format": "date",
+            "title": "Delivery Day"
+          },
+          "decision_day": {
+            "type": "string",
+            "format": "date",
+            "title": "Decision Day"
+          },
+          "cutoff": {
+            "type": "string",
+            "title": "Cutoff"
+          },
+          "cutoff_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Cutoff Time"
+          },
+          "forecast_run_publish_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Forecast Run Publish Time"
+          },
+          "hours": {
+            "items": {
+              "$ref": "#/components/schemas/HourResponse"
+            },
+            "type": "array",
+            "title": "Hours"
+          },
+          "actuals": {
+            "items": {
+              "$ref": "#/components/schemas/ActualResponse"
+            },
+            "type": "array",
+            "title": "Actuals"
+          },
+          "kpis": {
+            "$ref": "#/components/schemas/KpisResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "delivery_day",
+          "decision_day",
+          "cutoff",
+          "cutoff_time",
+          "forecast_run_publish_time",
+          "hours",
+          "actuals",
+          "kpis"
+        ],
+        "title": "DecisionSnapshotResponse"
+      },
       "DeliveryDaysResponse": {
         "properties": {
           "first": {
@@ -83,6 +333,129 @@
           "status"
         ],
         "title": "HealthResponse"
+      },
+      "HourResponse": {
+        "properties": {
+          "target_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Target Time"
+          },
+          "publish_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Publish Time"
+          },
+          "forecast_mw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Forecast Mw"
+          },
+          "actual_mw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actual Mw"
+          },
+          "error_mw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Mw"
+          }
+        },
+        "type": "object",
+        "required": [
+          "target_time",
+          "publish_time",
+          "forecast_mw",
+          "actual_mw",
+          "error_mw"
+        ],
+        "title": "HourResponse",
+        "description": "One delivery hour: decision forecast, aligned actual and forecast error, all in MW."
+      },
+      "KpisResponse": {
+        "properties": {
+          "forecast_mwh": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Forecast Mwh"
+          },
+          "actual_mwh": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actual Mwh"
+          },
+          "error_mwh": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Mwh"
+          },
+          "paired_hours": {
+            "type": "integer",
+            "title": "Paired Hours"
+          },
+          "missing_forecast_hours": {
+            "type": "integer",
+            "title": "Missing Forecast Hours"
+          },
+          "missing_actual_hours": {
+            "type": "integer",
+            "title": "Missing Actual Hours"
+          }
+        },
+        "type": "object",
+        "required": [
+          "forecast_mwh",
+          "actual_mwh",
+          "error_mwh",
+          "paired_hours",
+          "missing_forecast_hours",
+          "missing_actual_hours"
+        ],
+        "title": "KpisResponse"
       },
       "MetaResponse": {
         "properties": {
