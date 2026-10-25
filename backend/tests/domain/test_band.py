@@ -36,7 +36,8 @@ def _inputs_with_hourly_actuals(
     decided_at = datetime.combine(day - timedelta(days=1), time(7, 30))
     start = datetime.combine(day, time(0))
     forecasts = [
-        DecisionForecast(start + timedelta(hours=hour), decided_at, forecast_mw) for hour in range(24)
+        DecisionForecast(start + timedelta(hours=hour), decided_at, forecast_mw)
+        for hour in range(24)
     ]
     actuals = [
         HalfHourActual(start + timedelta(minutes=30 * half), hourly_actual_mw[half // 2])
@@ -180,7 +181,9 @@ def test_the_band_uses_only_forecasts_published_by_the_cutoff():
 
 
 def test_the_band_from_inputs_ignores_the_day_itself_and_every_later_day():
-    past = _flatten([_inputs_with_error(day, 100.0 * index) for index, day in enumerate(LOOKBACK[:7])])
+    past = _flatten(
+        [_inputs_with_error(day, 100.0 * index) for index, day in enumerate(LOOKBACK[:7])]
+    )
     later = _flatten(
         [_inputs_with_error(DAY + timedelta(days=offset), 5000.0) for offset in range(31)]
     )
@@ -196,10 +199,14 @@ def test_an_hour_with_no_decision_forecast_has_no_band_range():
 
 
 def test_band_coverage_counts_hours_inside_the_band_with_inclusive_edges():
-    # Band for 2 Jan is [9460, 9940] for forecast 10000. Hour 0 sits on the lower edge and hour 1 on
-    # the upper edge, so both are inside. Hour 2 is below, hour 3 is above, the rest are inside.
-    history = _flatten([_inputs_with_error(day, 100.0 * index) for index, day in enumerate(LOOKBACK[:7])])
-    hourly = [9460.0, 9940.0, 9000.0, 10000.0] + [9700.0] * 20
+    # Each past day holds 24 hourly errors of 100k MW. Pooled, the errors run 0 to 600, so P10 is 0
+    # and P90 is 600. For forecast 10000 the band for 2 Jan is [9400, 10000].
+    # Hour 0 sits on the lower edge and hour 1 on the upper edge: both inside. Hour 2 is just below
+    # and hour 3 just above: both outside. The other twenty hours are inside.
+    history = _flatten(
+        [_inputs_with_error(day, 100.0 * index) for index, day in enumerate(LOOKBACK[:7])]
+    )
+    hourly = [9400.0, 10000.0, 9399.0, 10001.0] + [9700.0] * 20
     scope = _inputs_with_hourly_actuals(DAY, FORECAST_MW, hourly)
 
     coverage = build_band_coverage([DAY], CUTOFF, *_flatten([history, scope]))
@@ -213,12 +220,16 @@ def test_band_coverage_counts_hours_inside_the_band_with_inclusive_edges():
 
 
 def test_band_coverage_leaves_out_and_counts_hours_with_no_forecast_no_actual_or_no_band():
-    history = _flatten([_inputs_with_error(day, 100.0 * index) for index, day in enumerate(LOOKBACK[:7])])
+    history = _flatten(
+        [_inputs_with_error(day, 100.0 * index) for index, day in enumerate(LOOKBACK[:7])]
+    )
     forecasts, actuals = _inputs_with_hourly_actuals(DAY, FORECAST_MW, [9700.0] * 24)
     # Hour 0 loses its decision forecast. Hour 1 loses both of its half-hour actuals.
     forecasts = [f for f in forecasts if f.target_time != datetime(2026, 1, 2, 0, 0)]
     actuals = [
-        a for a in actuals if a.target_time not in (datetime(2026, 1, 2, 1, 0), datetime(2026, 1, 2, 1, 30))
+        a
+        for a in actuals
+        if a.target_time not in (datetime(2026, 1, 2, 1, 0), datetime(2026, 1, 2, 1, 30))
     ]
 
     coverage = build_band_coverage([DAY], CUTOFF, *_flatten([history, (forecasts, actuals)]))
