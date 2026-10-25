@@ -66,6 +66,19 @@ DECISION_FORECASTS = (
     (datetime(2026, 1, 31, 7, 30), datetime(2026, 2, 1, 0, 0), 15000),
     (datetime(2026, 1, 31, 9, 30), datetime(2026, 2, 1, 23, 0), 16000),
 )
+# Cutoff edge cases for delivery day 5 Jan (decision day 4 Jan). A run published on 3 Jan at 22:30
+# covers up to 21:00Z on 5 Jan, and the 02:30 run on 4 Jan is the first run of the decision day.
+# A cutoff before 02:30 therefore falls back to the 22:30 run, which leaves 22:00 and 23:00 without
+# a decision forecast.
+CUTOFF_FORECASTS = (
+    # The 22:30 run, for 20:00 and for its last target, 21:00.
+    (datetime(2026, 1, 3, 22, 30), datetime(2026, 1, 5, 20, 0), 15300),
+    (datetime(2026, 1, 3, 22, 30), datetime(2026, 1, 5, 21, 0), 15500),
+    # The 02:30 run supersedes the 22:30 run at 21:00, and is the only run for 22:00 and 23:00.
+    (datetime(2026, 1, 4, 2, 30), datetime(2026, 1, 5, 21, 0), 15600),
+    (datetime(2026, 1, 4, 2, 30), datetime(2026, 1, 5, 22, 0), 16200),
+    (datetime(2026, 1, 4, 2, 30), datetime(2026, 1, 5, 23, 0), 16300),
+)
 DECISION_ACTUALS = (
     (datetime(2026, 1, 1, 23, 30), 1),  # the decision day, not delivery: must not be returned
     (datetime(2026, 1, 2, 0, 0), 14000),
@@ -83,6 +96,7 @@ def decision_snapshot(tmp_path: Path) -> Path:
         for statement in SCHEMA_STATEMENTS:
             con.execute(statement)
         con.executemany("INSERT INTO forecasts VALUES (?, ?, ?)", DECISION_FORECASTS)
+        con.executemany("INSERT INTO forecasts VALUES (?, ?, ?)", CUTOFF_FORECASTS)
         con.executemany("INSERT INTO actuals VALUES (?, ?)", DECISION_ACTUALS)
         con.execute(
             "INSERT INTO ingestion_metadata VALUES "
