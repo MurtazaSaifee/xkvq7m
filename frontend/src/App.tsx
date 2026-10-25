@@ -5,6 +5,7 @@ import { CoverageBadge } from "./components/CoverageBadge";
 import { DecisionCutoffProvider } from "./components/DecisionCutoffProvider";
 import { DecisionView } from "./components/DecisionView";
 import { HealthStatus } from "./components/HealthStatus";
+import { MethodologyView } from "./components/MethodologyView";
 import { ViewTabs } from "./components/ViewTabs";
 import { searchForDay } from "./decision/dayQuery";
 import { searchForView, viewFromSearch, type ViewId } from "./views/views";
@@ -42,11 +43,9 @@ function AppShell() {
       </header>
       <main className="mx-auto max-w-5xl space-y-8 px-4 py-10">
         <ViewTabs active={view} onSelect={selectView} />
-        {view === "accuracy" ? (
-          <AccuracyView onOpenDecision={openDecision} />
-        ) : (
-          <DecisionView />
-        )}
+        {view === "decision" && <DecisionView />}
+        {view === "accuracy" && <AccuracyView onOpenDecision={openDecision} />}
+        {view === "methodology" && <MethodologyView />}
       </main>
     </div>
   );

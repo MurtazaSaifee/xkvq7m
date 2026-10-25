@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_VIEW, searchForView, viewFromSearch } from "./views";
+import { DEFAULT_VIEW, searchForView, VIEWS, viewFromSearch } from "./views";
 
 describe("viewFromSearch", () => {
   it("opens the Decision view when no view is named", () => {
@@ -13,8 +13,17 @@ describe("viewFromSearch", () => {
     expect(viewFromSearch("?cutoff=14:30&view=accuracy")).toBe("accuracy");
   });
 
+  it("reads the Methodology view from the view parameter", () => {
+    expect(viewFromSearch("?view=methodology")).toBe("methodology");
+    expect(viewFromSearch("?cutoff=14:30&view=methodology")).toBe("methodology");
+  });
+
   it("falls back to the default view for an unknown name", () => {
     expect(viewFromSearch("?view=heatmap")).toBe(DEFAULT_VIEW);
+  });
+
+  it("lists the Decision, Accuracy and Methodology views in that order", () => {
+    expect(VIEWS.map((view) => view.label)).toEqual(["Decision", "Accuracy", "Methodology"]);
   });
 });
 

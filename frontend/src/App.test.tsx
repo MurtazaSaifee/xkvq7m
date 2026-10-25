@@ -36,6 +36,10 @@ const ACCURACY = {
   heatmap: { cells: [] },
   worst_days: [],
   horizon_curve: { buckets: [], excluded_no_actual: 0, decision_horizon_range_hours: null },
+  alignment_sensitivity: {
+    hourly_mean: { measured_hours: 744, mae_mw: 2038.9, bias_mw: 1747.9, rmse_mw: 2504.8 },
+    top_of_hour: { measured_hours: 744, mae_mw: 2022.5, bias_mw: 1745.9, rmse_mw: 2497.4 },
+  },
 };
 
 const META = {
@@ -164,6 +168,32 @@ describe("App", () => {
     expect(await screen.findByRole("group", { name: "Average miss (MAE)" })).toBeInTheDocument();
     expect(new URLSearchParams(window.location.search).get("view")).toBe("accuracy");
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/accuracy?cutoff=09%3A20", expect.anything());
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("opens the Methodology view from its tab, and names it in the URL", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: RequestInfo | URL) => {
+        const url = new URL(String(input), "http://localhost");
+        if (url.pathname === "/api/v1/accuracy") {
+          return Promise.resolve(jsonResponse(ACCURACY));
+        }
+        if (url.pathname === "/api/v1/meta") {
+          return metaOk();
+        }
+        return healthy();
+      }),
+    );
+    window.history.replaceState(null, "", "/");
+
+    renderApp();
+
+    fireEvent.click(await screen.findByRole("link", { name: "Methodology" }));
+
+    expect(await screen.findByRole("heading", { name: "Methodology" })).toBeInTheDocument();
+    expect(await screen.findByRole("table", { name: "Alignment sensitivity" })).toBeInTheDocument();
+    expect(new URLSearchParams(window.location.search).get("view")).toBe("methodology");
     window.history.replaceState(null, "", "/");
   });
 
