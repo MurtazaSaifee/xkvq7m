@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any
 
 import httpx
 import pytest
@@ -109,7 +110,7 @@ async def test_the_default_cutoff_is_0920_and_an_explicit_cutoff_is_used(api: ht
 CUTOFF_DAY = "2026-01-05"
 
 
-def _hour(body: dict, target_time: str) -> dict:
+def _hour(body: dict[str, Any], target_time: str) -> dict[str, Any]:
     return next(hour for hour in body["hours"] if hour["target_time"] == target_time)
 
 
