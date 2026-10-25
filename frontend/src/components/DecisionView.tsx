@@ -1,15 +1,14 @@
 import { useMemo, useState } from "react";
 
 import { useDecisionSnapshotQuery, useMetaQuery } from "../api/queries";
-import { deliveryDaysBetween } from "../decision/days";
 import { buildChartOption, CHART_COLORS } from "../decision/chartOption";
+import { deliveryDaysBetween } from "../decision/days";
+import { useDecisionCutoff } from "../decision/DecisionCutoffContext";
 import { formatDay, outlookSentence } from "../format";
+import { CutoffPicker } from "./CutoffPicker";
 import { DecisionChart } from "./DecisionChart";
 import { DeliveryDayPicker } from "./DeliveryDayPicker";
 import { KpiTiles } from "./KpiTiles";
-
-/** The decision cutoff this view uses. The picker for it arrives with the cutoff ticket. */
-const DECISION_CUTOFF = "09:20";
 
 function prefersReducedMotion(): boolean {
   return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
@@ -36,6 +35,7 @@ function Legend() {
 
 export function DecisionView() {
   const meta = useMetaQuery();
+  const { cutoff } = useDecisionCutoff();
   const [pickedDay, setPickedDay] = useState<string | null>(null);
 
   const deliveryDays = meta.data
@@ -43,7 +43,7 @@ export function DecisionView() {
     : [];
   // The view opens on the latest delivery day in scope, so it reads as today's decision.
   const selectedDay = pickedDay ?? meta.data?.delivery_days.last ?? null;
-  const snapshot = useDecisionSnapshotQuery(selectedDay, DECISION_CUTOFF);
+  const snapshot = useDecisionSnapshotQuery(selectedDay, cutoff);
   const option = useMemo(
     () => (snapshot.data ? buildChartOption(snapshot.data, prefersReducedMotion()) : null),
     [snapshot.data],
@@ -57,14 +57,18 @@ export function DecisionView() {
     );
   }
 
-  const picker =
-    selectedDay === null ? null : (
-      <DeliveryDayPicker
-        days={deliveryDays}
-        value={selectedDay}
-        onChange={(day) => setPickedDay(day)}
-      />
-    );
+  const picker = (
+    <div className="flex flex-wrap items-center gap-6">
+      {selectedDay === null ? null : (
+        <DeliveryDayPicker
+          days={deliveryDays}
+          value={selectedDay}
+          onChange={(day) => setPickedDay(day)}
+        />
+      )}
+      <CutoffPicker />
+    </div>
+  );
 
   if (selectedDay === null || snapshot.isPending) {
     return (

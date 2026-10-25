@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any
 
 import httpx
 import pytest
@@ -106,6 +107,69 @@ async def test_the_default_cutoff_is_0920_and_an_explicit_cutoff_is_used(api: ht
     assert later["hours"][1]["forecast_mw"] == 9000.0
 
 
+CUTOFF_DAY = "2026-01-05"
+
+
+def _hour(body: dict[str, Any], target_time: str) -> dict[str, Any]:
+    return next(hour for hour in body["hours"] if hour["target_time"] == target_time)
+
+
+async def test_a_later_cutoff_selects_a_later_forecast_run(api: httpx.AsyncClient):
+    async with api:
+        early = (
+            await api.get(
+                "/api/v1/decision-snapshot", params={"delivery_day": CUTOFF_DAY, "cutoff": "01:00"}
+            )
+        ).json()
+        late = (
+            await api.get(
+                "/api/v1/decision-snapshot", params={"delivery_day": CUTOFF_DAY, "cutoff": "09:20"}
+            )
+        ).json()
+
+    # Before 02:30 the 21:00 target comes from the 22:30 run of 3 Jan; from 02:30 the 4 Jan run.
+    assert _hour(early, "2026-01-05T21:00:00Z")["publish_time"] == "2026-01-03T22:30:00Z"
+    assert _hour(early, "2026-01-05T21:00:00Z")["forecast_mw"] == 15500
+    assert _hour(late, "2026-01-05T21:00:00Z")["publish_time"] == "2026-01-04T02:30:00Z"
+    assert _hour(late, "2026-01-05T21:00:00Z")["forecast_mw"] == 15600
+    assert early["forecast_run_publish_time"] == "2026-01-03T22:30:00Z"
+    assert late["forecast_run_publish_time"] == "2026-01-04T02:30:00Z"
+
+
+async def test_a_cutoff_before_0230_leaves_2200_and_2300_as_gaps_not_zeros(api: httpx.AsyncClient):
+    async with api:
+        body = (
+            await api.get(
+                "/api/v1/decision-snapshot", params={"delivery_day": CUTOFF_DAY, "cutoff": "01:00"}
+            )
+        ).json()
+
+    # The 22:30 run of 3 Jan ends at 21:00Z on 5 Jan, so 22:00 and 23:00 have no decision forecast.
+    for gap in ("2026-01-05T22:00:00Z", "2026-01-05T23:00:00Z"):
+        assert _hour(body, gap) == {
+            "target_time": gap,
+            "publish_time": None,
+            "forecast_mw": None,
+            "actual_mw": None,
+            "error_mw": None,
+        }
+    assert _hour(body, "2026-01-05T20:00:00Z")["forecast_mw"] == 15300
+    # 22 of 24 hours have no decision forecast: everything except 20:00 and 21:00.
+    assert body["kpis"]["missing_forecast_hours"] == 22
+
+
+async def test_a_cutoff_at_0230_includes_the_run_published_then(api: httpx.AsyncClient):
+    async with api:
+        body = (
+            await api.get(
+                "/api/v1/decision-snapshot", params={"delivery_day": CUTOFF_DAY, "cutoff": "02:30"}
+            )
+        ).json()
+
+    assert _hour(body, "2026-01-05T22:00:00Z")["forecast_mw"] == 16200
+    assert _hour(body, "2026-01-05T22:00:00Z")["publish_time"] == "2026-01-04T02:30:00Z"
+
+
 @pytest.mark.parametrize("delivery_day", ["2026-01-02", "2026-02-01"])
 async def test_the_first_and_last_delivery_days_in_scope_are_served(
     api: httpx.AsyncClient, delivery_day: str
@@ -126,6 +190,11 @@ async def test_the_first_and_last_delivery_days_in_scope_are_served(
         ({"delivery_day": "2026-02-01", "cutoff": "9:20"}, "invalid-parameter"),
         ({"delivery_day": "2026-02-01", "cutoff": "24:00"}, "invalid-parameter"),
         ({"delivery_day": "2026-02-01", "cutoff": "09:20:00"}, "invalid-parameter"),
+        ({"delivery_day": "2026-02-01", "cutoff": "09:60"}, "invalid-parameter"),
+        ({"delivery_day": "2026-02-01", "cutoff": "25:00"}, "invalid-parameter"),
+        ({"delivery_day": "2026-02-01", "cutoff": "14:3"}, "invalid-parameter"),
+        ({"delivery_day": "2026-02-01", "cutoff": ""}, "invalid-parameter"),
+        ({"delivery_day": "2026-02-01", "cutoff": "noon"}, "invalid-parameter"),
         ({"delivery_day": "2026-01-01"}, "delivery-day-out-of-range"),
         ({"delivery_day": "2026-02-02"}, "delivery-day-out-of-range"),
     ],
@@ -144,6 +213,17 @@ async def test_invalid_or_out_of_range_requests_return_rfc_7807_problems(
     assert problem["title"]
     assert problem["detail"]
     assert problem["instance"] == "/api/v1/decision-snapshot"
+
+
+async def test_an_invalid_cutoff_problem_names_the_cutoff_parameter(api: httpx.AsyncClient):
+    async with api:
+        response = await api.get(
+            "/api/v1/decision-snapshot", params={"delivery_day": "2026-02-01", "cutoff": "9:20"}
+        )
+
+    problem = response.json()
+    assert problem["errors"][0]["loc"] == ["query", "cutoff"]
+    assert "cutoff" in problem["detail"]
 
 
 async def test_a_missing_snapshot_is_a_503_problem(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
