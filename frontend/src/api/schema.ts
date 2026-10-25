@@ -86,6 +86,7 @@ export interface components {
             heatmap: components["schemas"]["ErrorHeatmapResponse"];
             /** Worst Days */
             worst_days: components["schemas"]["WorstDayResponse"][];
+            horizon_curve: components["schemas"]["HorizonCurveResponse"];
         };
         /**
          * AccuracySummaryResponse
@@ -225,6 +226,44 @@ export interface components {
             hour: number;
             /** Error Mw */
             error_mw: number | null;
+        };
+        /**
+         * HorizonBucketResponse
+         * @description Forecasts whose horizon is in (lower_hours, upper_hours]. MAE and bias are in MW and are null
+         *     when the bucket has no measured forecast, in which case the sample count is zero.
+         */
+        HorizonBucketResponse: {
+            /** Lower Hours */
+            lower_hours: number;
+            /** Upper Hours */
+            upper_hours: number;
+            /** Mae Mw */
+            mae_mw: number | null;
+            /** Bias Mw */
+            bias_mw: number | null;
+            /** Sample Count */
+            sample_count: number;
+        };
+        /**
+         * HorizonCurveResponse
+         * @description Error by forecast horizon over every forecast whose target time is in scope, not only the
+         *     decision forecasts. Buckets are 1 hour wide, from 1 hour up to the longest horizon in scope.
+         *     ``decision_horizon_range_hours`` is the shortest and longest horizon of the decision forecasts
+         *     at the cutoff, so the curve can mark where the desk's decisions sit.
+         */
+        HorizonCurveResponse: {
+            /** Buckets */
+            buckets: components["schemas"]["HorizonBucketResponse"][];
+            /** Excluded No Actual */
+            excluded_no_actual: number;
+            decision_horizon_range_hours: components["schemas"]["HorizonRangeResponse"] | null;
+        };
+        /** HorizonRangeResponse */
+        HorizonRangeResponse: {
+            /** Min Hours */
+            min_hours: number;
+            /** Max Hours */
+            max_hours: number;
         };
         /**
          * HourResponse

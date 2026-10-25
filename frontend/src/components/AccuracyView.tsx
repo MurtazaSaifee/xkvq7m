@@ -5,6 +5,7 @@ import { CutoffPicker } from "./CutoffPicker";
 import { ErrorHeatmapPanel } from "./accuracy/ErrorHeatmapPanel";
 import { ErrorHistogram } from "./accuracy/ErrorHistogram";
 import { HeadlineMetrics } from "./accuracy/HeadlineMetrics";
+import { HorizonCurve } from "./accuracy/HorizonCurve";
 import { WorstDaysPanel } from "./accuracy/WorstDaysPanel";
 
 /**
@@ -68,6 +69,8 @@ export function AccuracyView({ onOpenDecision }: { onOpenDecision: (day: string)
       />
 
       <WorstDaysPanel worstDays={data.worst_days} onOpenDay={onOpenDecision} />
+
+      <HorizonCurve curve={data.horizon_curve} cutoff={data.cutoff} />
     </section>
   );
 }

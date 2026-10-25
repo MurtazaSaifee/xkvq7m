@@ -382,6 +382,9 @@
             },
             "type": "array",
             "title": "Worst Days"
+          },
+          "horizon_curve": {
+            "$ref": "#/components/schemas/HorizonCurveResponse"
           }
         },
         "type": "object",
@@ -391,7 +394,8 @@
           "summary",
           "histogram",
           "heatmap",
-          "worst_days"
+          "worst_days",
+          "horizon_curve"
         ],
         "title": "AccuracyResponse"
       },
@@ -732,6 +736,105 @@
         ],
         "title": "HeatmapCellResponse",
         "description": "The decision forecast error for one delivery day and one UK hour of day (0 to 23), in MW.\n``error_mw`` is null where that hour cannot be measured."
+      },
+      "HorizonBucketResponse": {
+        "properties": {
+          "lower_hours": {
+            "type": "integer",
+            "title": "Lower Hours"
+          },
+          "upper_hours": {
+            "type": "integer",
+            "title": "Upper Hours"
+          },
+          "mae_mw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mae Mw"
+          },
+          "bias_mw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bias Mw"
+          },
+          "sample_count": {
+            "type": "integer",
+            "title": "Sample Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lower_hours",
+          "upper_hours",
+          "mae_mw",
+          "bias_mw",
+          "sample_count"
+        ],
+        "title": "HorizonBucketResponse",
+        "description": "Forecasts whose horizon is in (lower_hours, upper_hours]. MAE and bias are in MW and are null\nwhen the bucket has no measured forecast, in which case the sample count is zero."
+      },
+      "HorizonCurveResponse": {
+        "properties": {
+          "buckets": {
+            "items": {
+              "$ref": "#/components/schemas/HorizonBucketResponse"
+            },
+            "type": "array",
+            "title": "Buckets"
+          },
+          "excluded_no_actual": {
+            "type": "integer",
+            "title": "Excluded No Actual"
+          },
+          "decision_horizon_range_hours": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HorizonRangeResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "buckets",
+          "excluded_no_actual",
+          "decision_horizon_range_hours"
+        ],
+        "title": "HorizonCurveResponse",
+        "description": "Error by forecast horizon over every forecast whose target time is in scope, not only the\ndecision forecasts. Buckets are 1 hour wide, from 1 hour up to the longest horizon in scope.\n``decision_horizon_range_hours`` is the shortest and longest horizon of the decision forecasts\nat the cutoff, so the curve can mark where the desk's decisions sit."
+      },
+      "HorizonRangeResponse": {
+        "properties": {
+          "min_hours": {
+            "type": "number",
+            "title": "Min Hours"
+          },
+          "max_hours": {
+            "type": "number",
+            "title": "Max Hours"
+          }
+        },
+        "type": "object",
+        "required": [
+          "min_hours",
+          "max_hours"
+        ],
+        "title": "HorizonRangeResponse"
       },
       "HourResponse": {
         "properties": {

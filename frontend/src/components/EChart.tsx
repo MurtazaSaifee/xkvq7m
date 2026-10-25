@@ -3,6 +3,9 @@ import { BarChart, HeatmapChart, LineChart } from "echarts/charts";
 import {
   DataZoomComponent,
   GridComponent,
+  LegendComponent,
+  MarkAreaComponent,
+  MarkLineComponent,
   TooltipComponent,
   VisualMapComponent,
 } from "echarts/components";
@@ -10,7 +13,8 @@ import { CanvasRenderer } from "echarts/renderers";
 import type { EChartsOption } from "echarts";
 import { useEffect, useRef } from "react";
 
-// Only the parts the charts use are registered, to keep the bundle small.
+// Only the parts the charts use are registered, to keep the bundle small. ECharts drops any option
+// component that is not registered, without an error on screen, so add each one a chart uses here.
 echarts.use([
   LineChart,
   BarChart,
@@ -19,6 +23,9 @@ echarts.use([
   TooltipComponent,
   VisualMapComponent,
   DataZoomComponent,
+  LegendComponent,
+  MarkAreaComponent,
+  MarkLineComponent,
   CanvasRenderer,
 ]);
 

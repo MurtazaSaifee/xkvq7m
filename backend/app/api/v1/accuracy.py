@@ -22,6 +22,7 @@ from app.domain.accuracy import (
 )
 from app.domain.decision import CUTOFF_PATTERN, DEFAULT_CUTOFF, parse_cutoff
 from app.domain.error_grid import ErrorGrid, build_error_grid
+from app.domain.horizon import HorizonCurve, HorizonRange, error_by_horizon
 from app.repository.snapshot import SnapshotRepository, SnapshotUnavailableError
 
 router = APIRouter()
@@ -94,6 +95,33 @@ class WorstDayResponse(BaseModel):
     paired_hours: int
 
 
+class HorizonBucketResponse(BaseModel):
+    """Forecasts whose horizon is in (lower_hours, upper_hours]. MAE and bias are in MW and are null
+    when the bucket has no measured forecast, in which case the sample count is zero."""
+
+    lower_hours: int
+    upper_hours: int
+    mae_mw: float | None
+    bias_mw: float | None
+    sample_count: int
+
+
+class HorizonRangeResponse(BaseModel):
+    min_hours: float
+    max_hours: float
+
+
+class HorizonCurveResponse(BaseModel):
+    """Error by forecast horizon over every forecast whose target time is in scope, not only the
+    decision forecasts. Buckets are 1 hour wide, from 1 hour up to the longest horizon in scope.
+    ``decision_horizon_range_hours`` is the shortest and longest horizon of the decision forecasts
+    at the cutoff, so the curve can mark where the desk's decisions sit."""
+
+    buckets: list[HorizonBucketResponse]
+    excluded_no_actual: int
+    decision_horizon_range_hours: HorizonRangeResponse | None
+
+
 class AccuracyResponse(BaseModel):
     cutoff: str
     delivery_days: DeliveryDayRangeResponse
@@ -101,9 +129,37 @@ class AccuracyResponse(BaseModel):
     histogram: ErrorHistogramResponse
     heatmap: ErrorHeatmapResponse
     worst_days: list[WorstDayResponse]
+    horizon_curve: HorizonCurveResponse
 
 
-def _to_response(report: AccuracyReport, grid: ErrorGrid) -> AccuracyResponse:
+def _horizon_range_to_response(decision_range: HorizonRange | None) -> HorizonRangeResponse | None:
+    if decision_range is None:
+        return None
+    return HorizonRangeResponse(
+        min_hours=decision_range.min_hours, max_hours=decision_range.max_hours
+    )
+
+
+def _horizon_to_response(curve: HorizonCurve) -> HorizonCurveResponse:
+    return HorizonCurveResponse(
+        buckets=[
+            HorizonBucketResponse(
+                lower_hours=b.lower_hours,
+                upper_hours=b.upper_hours,
+                mae_mw=b.mae_mw,
+                bias_mw=b.bias_mw,
+                sample_count=b.sample_count,
+            )
+            for b in curve.buckets
+        ],
+        excluded_no_actual=curve.excluded_no_actual,
+        decision_horizon_range_hours=_horizon_range_to_response(curve.decision_range),
+    )
+
+
+def _to_response(
+    report: AccuracyReport, grid: ErrorGrid, horizon: HorizonCurve
+) -> AccuracyResponse:
     summary = report.summary
     return AccuracyResponse(
         cutoff=report.cutoff.strftime("%H:%M"),
@@ -145,6 +201,7 @@ def _to_response(report: AccuracyReport, grid: ErrorGrid) -> AccuracyResponse:
             )
             for worst in grid.worst_days
         ],
+        horizon_curve=_horizon_to_response(horizon),
     )
 
 
@@ -175,6 +232,7 @@ def accuracy(
         window_start, window_end = accuracy_window(days)
         forecasts = repository.decision_forecasts_at(decision_targets(days, cutoff_time))
         actuals = repository.actuals_between(window_start, window_end)
+        all_forecasts = repository.forecasts_between(window_start, window_end)
     except SnapshotUnavailableError as error:
         raise ProblemError(
             503, "Service Unavailable", "Data snapshot is not available", ABOUT_BLANK
@@ -182,4 +240,7 @@ def accuracy(
 
     report = build_accuracy_report(days, cutoff_time, forecasts, actuals)
     grid = build_error_grid(days, cutoff_time, forecasts, actuals)
-    return _to_response(report, grid)
+    horizon = error_by_horizon(
+        window_start, window_end, all_forecasts, actuals, decision_forecasts=forecasts
+    )
+    return _to_response(report, grid, horizon)

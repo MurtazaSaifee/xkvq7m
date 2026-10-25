@@ -25,6 +25,7 @@ const ACCURACY = {
   histogram: { bin_width_mw: 500, bins: [] },
   heatmap: { cells: [] },
   worst_days: [],
+  horizon_curve: { buckets: [], excluded_no_actual: 0, decision_horizon_range_hours: null },
 };
 
 const META = {
