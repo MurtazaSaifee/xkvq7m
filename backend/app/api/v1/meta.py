@@ -1,8 +1,9 @@
 from datetime import date
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import AwareDatetime, BaseModel
 
+from app.api.cache import cache_immutable_answer
 from app.api.problems import SNAPSHOT_PROBLEM_RESPONSES, snapshot_unavailable
 from app.core.config import snapshot_path
 from app.repository.snapshot import SnapshotCoverage, SnapshotRepository, SnapshotUnavailableError
@@ -55,6 +56,7 @@ def _to_response(coverage: SnapshotCoverage) -> MetaResponse:
     response_model=MetaResponse,
     summary="Snapshot coverage and ingestion metadata",
     responses=SNAPSHOT_PROBLEM_RESPONSES,
+    dependencies=[Depends(cache_immutable_answer)],
 )
 def meta() -> MetaResponse:
     try:

@@ -1,9 +1,10 @@
 from datetime import UTC, date, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import AwareDatetime, BaseModel
 
+from app.api.cache import cache_immutable_answer
 from app.api.problems import PROBLEM_RESPONSES, ProblemError, invalid_cutoff, snapshot_unavailable
 from app.core.config import snapshot_path
 from app.domain.accuracy import accuracy_window, decision_targets
@@ -141,6 +142,7 @@ def _to_response(
     response_model=DecisionSnapshotResponse,
     summary="Decision snapshot for one delivery day, with day KPIs",
     responses=PROBLEM_RESPONSES,
+    dependencies=[Depends(cache_immutable_answer)],
 )
 def decision_snapshot(
     delivery_day: Annotated[

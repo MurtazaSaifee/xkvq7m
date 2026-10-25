@@ -1,9 +1,10 @@
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
+from app.api.cache import cache_immutable_answer
 from app.api.problems import PROBLEM_RESPONSES, invalid_cutoff, snapshot_unavailable
 from app.core.config import snapshot_path
 from app.domain.accuracy import (
@@ -285,6 +286,7 @@ def _to_response(
     response_model=AccuracyResponse,
     summary="Accuracy of decision forecasts over the scope, with an error histogram",
     responses=PROBLEM_RESPONSES,
+    dependencies=[Depends(cache_immutable_answer)],
 )
 def accuracy(
     cutoff: Annotated[
