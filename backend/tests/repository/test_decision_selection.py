@@ -99,6 +99,24 @@ def test_the_delivery_days_come_from_the_ingestion_window(decision_snapshot: Pat
     assert SnapshotRepository(decision_snapshot).delivery_days() == (FIRST_DAY, LAST_DAY)
 
 
+def test_each_target_is_selected_against_its_own_cutoff(decision_snapshot: Path):
+    # 2 Jan 00:00 with the 1 Jan cutoff at 09:20 selects the 09:20 run (10100). With the cutoff at
+    # 07:30 only the 07:30 run is in time (10000). 1 Feb 00:00 uses its own cutoff on 31 Jan.
+    forecasts = SnapshotRepository(decision_snapshot).decision_forecasts_at(
+        [
+            (datetime(2026, 1, 2, 0, 0), datetime(2026, 1, 1, 9, 20)),
+            (datetime(2026, 1, 2, 0, 0), datetime(2026, 1, 1, 7, 30)),
+            (datetime(2026, 2, 1, 0, 0), datetime(2026, 1, 31, 9, 20)),
+        ]
+    )
+
+    assert sorted((f.target_time, f.publish_time, f.generation_mw) for f in forecasts) == [
+        (datetime(2026, 1, 2, 0, 0), datetime(2026, 1, 1, 7, 30), 10000),
+        (datetime(2026, 1, 2, 0, 0), datetime(2026, 1, 1, 9, 20), 10100),
+        (datetime(2026, 2, 1, 0, 0), datetime(2026, 1, 31, 7, 30), 15000),
+    ]
+
+
 def test_reading_decision_forecasts_does_not_change_the_file(decision_snapshot: Path):
     before = decision_snapshot.read_bytes()
 
