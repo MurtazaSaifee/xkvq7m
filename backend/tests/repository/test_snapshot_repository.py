@@ -2,6 +2,7 @@ import shutil
 import tempfile
 from datetime import UTC, date, datetime
 from pathlib import Path
+from typing import Any
 
 import duckdb
 import pytest
@@ -44,13 +45,13 @@ def test_a_missing_snapshot_is_unavailable_and_is_not_created(tmp_path: Path):
 def test_the_snapshot_is_opened_read_only_with_temp_files_in_the_system_temp_dir(
     snapshot_file: Path, monkeypatch: pytest.MonkeyPatch
 ):
-    # Vercel's bundle is read-only and only /tmp is writable, so DuckDB must not spill beside the file.
+    # Vercel's bundle is read-only and only /tmp is writable: DuckDB must not spill beside the file.
     opened: dict[str, object] = {}
     real_connect = duckdb.connect
 
-    def recording_connect(database: str, *args: object, **kwargs: object) -> duckdb.DuckDBPyConnection:
+    def recording_connect(database: str, **kwargs: Any) -> duckdb.DuckDBPyConnection:
         opened.update(kwargs)
-        return real_connect(database, *args, **kwargs)  # type: ignore[arg-type]
+        return real_connect(database, **kwargs)
 
     monkeypatch.setattr(duckdb, "connect", recording_connect)
 

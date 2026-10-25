@@ -4,6 +4,7 @@ Each call opens the file read-only and closes it again, so nothing holds the fil
 Timestamps are stored as naive UTC and returned as timezone-aware UTC.
 """
 
+import tempfile
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -44,7 +45,14 @@ class SnapshotRepository:
         if not self._path.is_file():
             raise SnapshotUnavailableError(f"no snapshot at {self._path}")
 
-        con = duckdb.connect(str(self._path), read_only=True)
+        # Vercel's bundle is read-only and only the temp dir is writable, so DuckDB must not spill
+        # or write its home-directory state beside the snapshot.
+        scratch = tempfile.gettempdir()
+        con = duckdb.connect(
+            str(self._path),
+            read_only=True,
+            config={"temp_directory": scratch, "home_directory": scratch},
+        )
         try:
             metadata = con.execute(
                 "SELECT ingested_at, excluded_forecasts, delivery_day_first, delivery_day_last "
