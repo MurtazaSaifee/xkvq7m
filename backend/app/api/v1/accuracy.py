@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Query
@@ -19,6 +19,12 @@ from app.domain.accuracy import (
     build_accuracy_report,
     decision_targets,
     delivery_days_between,
+)
+from app.domain.band import (
+    BAND_LOOKBACK_DAYS,
+    BAND_MIN_HISTORY_DAYS,
+    BandCoverage,
+    build_band_coverage,
 )
 from app.domain.decision import CUTOFF_PATTERN, DEFAULT_CUTOFF, parse_cutoff
 from app.repository.snapshot import SnapshotRepository, SnapshotUnavailableError
@@ -69,14 +75,43 @@ class ErrorHistogramResponse(BaseModel):
     bins: list[ErrorBinResponse]
 
 
+class BandCoverageResponse(BaseModel):
+    """How often the actual fell inside its expected-error band over the scope. Hours are counted
+    when they have a decision forecast, an actual and a band. The four counts add up to
+    ``target_hours`` of the scope, and the coverage is null when no hour is counted."""
+
+    lookback_days: int
+    min_history_days: int
+    counted_hours: int
+    inside_hours: int
+    coverage_percent: float | None
+    excluded_no_band: int
+    excluded_no_decision_forecast: int
+    excluded_no_actual: int
+
+
 class AccuracyResponse(BaseModel):
     cutoff: str
     delivery_days: DeliveryDayRangeResponse
     summary: AccuracySummaryResponse
     histogram: ErrorHistogramResponse
+    band_coverage: BandCoverageResponse
 
 
-def _to_response(report: AccuracyReport) -> AccuracyResponse:
+def _band_coverage_response(coverage: BandCoverage) -> BandCoverageResponse:
+    return BandCoverageResponse(
+        lookback_days=BAND_LOOKBACK_DAYS,
+        min_history_days=BAND_MIN_HISTORY_DAYS,
+        counted_hours=coverage.counted_hours,
+        inside_hours=coverage.inside_hours,
+        coverage_percent=coverage.coverage_percent,
+        excluded_no_band=coverage.excluded_no_band,
+        excluded_no_decision_forecast=coverage.excluded_no_decision_forecast,
+        excluded_no_actual=coverage.excluded_no_actual,
+    )
+
+
+def _to_response(report: AccuracyReport, coverage: BandCoverage) -> AccuracyResponse:
     summary = report.summary
     return AccuracyResponse(
         cutoff=report.cutoff.strftime("%H:%M"),
@@ -100,6 +135,7 @@ def _to_response(report: AccuracyReport) -> AccuracyResponse:
                 for b in report.histogram
             ],
         ),
+        band_coverage=_band_coverage_response(coverage),
     )
 
 
@@ -127,12 +163,17 @@ def accuracy(
         repository = SnapshotRepository(snapshot_path())
         first_day, last_day = repository.delivery_days()
         days = delivery_days_between(first_day, last_day)
-        window_start, window_end = accuracy_window(days)
-        forecasts = repository.decision_forecasts_at(decision_targets(days, cutoff_time))
+        # The band's warm-up is the fourteen days before the scope, so those days are read too.
+        # The summary and histogram still cover only the scope days.
+        history = delivery_days_between(first_day - timedelta(days=BAND_LOOKBACK_DAYS), last_day)
+        window_start, window_end = accuracy_window(history)
+        forecasts = repository.decision_forecasts_at(decision_targets(history, cutoff_time))
         actuals = repository.actuals_between(window_start, window_end)
     except SnapshotUnavailableError as error:
         raise ProblemError(
             503, "Service Unavailable", "Data snapshot is not available", ABOUT_BLANK
         ) from error
 
-    return _to_response(build_accuracy_report(days, cutoff_time, forecasts, actuals))
+    report = build_accuracy_report(days, cutoff_time, forecasts, actuals)
+    coverage = build_band_coverage(days, cutoff_time, forecasts, actuals)
+    return _to_response(report, coverage)
