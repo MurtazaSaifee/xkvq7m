@@ -13,7 +13,7 @@ The day before a delivery day, on which the purchase decision for that delivery 
 _Avoid_: Trading day, D-1 (fine as shorthand, but not as a name)
 
 **Decision cutoff**:
-The moment on the decision day by which the purchase decision must be made. Only forecasts published before it can inform the decision.
+The moment on the decision day by which the purchase decision must be made. Only forecasts published at or before it can inform the decision.
 _Avoid_: Deadline, decision time, gate closure (the market's gate closure may set the cutoff, but the two are distinct concepts)
 
 **Target time**:
@@ -43,7 +43,7 @@ All forecasts sharing one publish time. A run covers a fixed window of target ti
 _Avoid_: Forecast batch, vintage, publication
 
 **Decision forecast**:
-For a target time, the latest forecast published before the decision cutoff of its delivery day. It is the forecast the desk actually had when it decided.
+For a target time, the latest forecast published at or before the decision cutoff of its delivery day. It is the forecast the desk actually had when it decided.
 _Avoid_: Latest forecast (ambiguous: latest as of when?), current forecast
 
 **Decision snapshot**:
