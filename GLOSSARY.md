@@ -57,7 +57,7 @@ Forecast minus actual generation for the same target time. A positive error mean
 _Avoid_: Residual, deviation, miss
 
 **Expected-error band**:
-The range around a decision snapshot within which actual generation is expected to fall. It is derived only from forecast errors observed on delivery days before that snapshot's delivery day.
+The range around a decision snapshot within which actual generation is expected to fall. It is derived only from forecast errors already known at the decision cutoff: those of the 14 delivery days that end two days before the snapshot's delivery day (D-15 to D-2). Nothing from the decision day or later is used.
 _Avoid_: Confidence interval, uncertainty band, error bars
 
 **Band coverage**:
