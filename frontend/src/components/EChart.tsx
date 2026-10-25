@@ -1,6 +1,11 @@
 import * as echarts from "echarts/core";
-import { BarChart, LineChart } from "echarts/charts";
-import { DataZoomComponent, GridComponent, TooltipComponent } from "echarts/components";
+import { BarChart, HeatmapChart, LineChart } from "echarts/charts";
+import {
+  DataZoomComponent,
+  GridComponent,
+  TooltipComponent,
+  VisualMapComponent,
+} from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
 import type { EChartsOption } from "echarts";
 import { useEffect, useRef } from "react";
@@ -9,8 +14,10 @@ import { useEffect, useRef } from "react";
 echarts.use([
   LineChart,
   BarChart,
+  HeatmapChart,
   GridComponent,
   TooltipComponent,
+  VisualMapComponent,
   DataZoomComponent,
   CanvasRenderer,
 ]);

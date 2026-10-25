@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { EChartsOption } from "echarts";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -39,6 +39,8 @@ const ACCURACY: AccuracyResponse = {
       { lower_mw: 0, upper_mw: 500, count: 4 },
     ],
   },
+  heatmap: { cells: [] },
+  worst_days: [],
 };
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -65,7 +67,7 @@ function renderView() {
   return render(
     <QueryClientProvider client={queryClient}>
       <DecisionCutoffProvider>
-        <AccuracyView />
+        <AccuracyView onOpenDecision={() => {}} />
       </DecisionCutoffProvider>
     </QueryClientProvider>,
   );
@@ -178,5 +180,81 @@ describe("AccuracyView", () => {
     renderView();
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Data snapshot is not available");
+  });
+
+  it("plots the decision forecast error of each heatmap cell, by delivery day and UK hour", async () => {
+    stubAccuracy(() =>
+      jsonResponse({
+        ...ACCURACY,
+        heatmap: {
+          cells: [
+            { delivery_day: "2026-01-02", hour: 0, error_mw: 900 },
+            { delivery_day: "2026-01-02", hour: 1, error_mw: -500 },
+            { delivery_day: "2026-01-03", hour: 0, error_mw: null },
+          ],
+        },
+      }),
+    );
+
+    renderView();
+
+    await screen.findByRole("group", { name: "Average miss (MAE)" });
+    const chart = charts.filter((c) => c.label.startsWith("Heatmap")).at(-1);
+    expect(chart?.label).toBe(
+      "Heatmap of decision forecast error by delivery day and UK hour, 2 Jan to 1 Feb 2026, at the 09:20 cutoff",
+    );
+    const series = (chart?.option.series as unknown as { data: unknown[] }[])[0];
+    expect(series?.data).toEqual([
+      [0, 0, 900],
+      [1, 0, -500],
+      [0, 1, null],
+    ]);
+  });
+
+  it("says plainly when no heatmap cell can be measured, rather than drawing an empty grid", async () => {
+    stubAccuracy(() =>
+      jsonResponse({
+        ...ACCURACY,
+        heatmap: { cells: [{ delivery_day: "2026-01-02", hour: 0, error_mw: null }] },
+      }),
+    );
+
+    renderView();
+
+    await screen.findByRole("group", { name: "Average miss (MAE)" });
+    expect(
+      screen.getByText("No cell can be measured at this cutoff, so there is no grid."),
+    ).toBeInTheDocument();
+    expect(charts.some((c) => c.label.startsWith("Heatmap"))).toBe(false);
+  });
+
+  it("hands the chosen worst day to the app, so its row opens the Decision view", async () => {
+    stubAccuracy(() =>
+      jsonResponse({
+        ...ACCURACY,
+        worst_days: [
+          {
+            delivery_day: "2026-01-02",
+            error_mwh: 1300,
+            forecast_mwh: 93500,
+            actual_mwh: 92200,
+            paired_hours: 6,
+          },
+        ],
+      }),
+    );
+    const onOpenDecision = vi.fn();
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <DecisionCutoffProvider>
+          <AccuracyView onOpenDecision={onOpenDecision} />
+        </DecisionCutoffProvider>
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(await screen.findByRole("link", { name: "2 Jan" }));
+
+    expect(onOpenDecision).toHaveBeenCalledWith("2026-01-02");
   });
 });
