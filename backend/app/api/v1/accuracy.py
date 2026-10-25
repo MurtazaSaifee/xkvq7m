@@ -226,7 +226,9 @@ def _alignment_metrics_response(summary: AccuracySummary) -> AlignmentMetricsRes
     )
 
 
-def _alignment_sensitivity_response(sensitivity: AlignmentSensitivity) -> AlignmentSensitivityResponse:
+def _alignment_sensitivity_response(
+    sensitivity: AlignmentSensitivity,
+) -> AlignmentSensitivityResponse:
     return AlignmentSensitivityResponse(
         hourly_mean=_alignment_metrics_response(sensitivity.hourly_mean),
         top_of_hour=_alignment_metrics_response(sensitivity.top_of_hour),

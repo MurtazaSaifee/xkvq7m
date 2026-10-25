@@ -97,9 +97,9 @@ def decision_targets(days: Sequence[date], cutoff: time) -> list[tuple[datetime,
 class AlignmentSensitivity:
     """Headline metrics under the two alignment rules, over the same decision forecasts.
 
-    ``hourly_mean`` is the rule the headline figures use: the mean of the two half-hours. ``top_of_hour``
-    compares each hour with the half-hour starting at h:00 alone. Each side measures the hours its own
-    rule can measure, so the two ``measured_hours`` can differ.
+    ``hourly_mean`` is the rule the headline figures use: the mean of the two half-hours.
+    ``top_of_hour`` compares each hour with the half-hour starting at h:00 alone. Each side measures
+    the hours its own rule can measure, so the two ``measured_hours`` can differ.
     """
 
     hourly_mean: AccuracySummary

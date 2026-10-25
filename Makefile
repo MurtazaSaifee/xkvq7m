@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
-.PHONY: help install dev test test-backend test-frontend lint lint-backend lint-frontend gen-types ingest export-requirements
+.PHONY: help install dev test test-backend test-frontend lint lint-backend lint-frontend gen-types ingest export-requirements sensitivity
 
 help: ## List the make targets
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "%-16s %s\n", $$1, $$2}'
@@ -33,6 +33,9 @@ lint-frontend: ## eslint, tsc
 
 ingest: ## Fetch Elexon data for the fixed window and rebuild data/snapshot.duckdb (needs network)
 	cd backend && uv run python -m app.ingestion --output ../data/snapshot.duckdb
+
+sensitivity: ## Print the alignment sensitivity check at 09:20 from the snapshot in use
+	cd backend && uv run python -m app.sensitivity
 
 export-requirements: ## Export the backend lock to requirements.txt for Vercel's Python runtime
 	cd backend && uv export --frozen --no-dev --no-emit-project --output-file ../requirements.txt
