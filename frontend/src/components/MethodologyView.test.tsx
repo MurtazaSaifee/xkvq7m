@@ -122,12 +122,34 @@ describe("MethodologyView", () => {
     renderView();
 
     expect(
-      screen.getByText(/headline metrics cover only delivery days 2 Jan to 1 Feb 2026/),
+      await screen.findByText(/headline metrics cover only the delivery days 2 Jan to 1 Feb 2026/),
     ).toBeVisible();
     expect(screen.getByText(/December 2025 data is used only as band warm-up/)).toBeVisible();
     expect(
       screen.getByText(/includes forecasts published after the cutoff, to show what waiting would buy/),
     ).toBeVisible();
+    await screen.findByRole("table", { name: "Alignment sensitivity" });
+  });
+
+  it("takes the delivery days from the snapshot metadata, not from fixed copy", async () => {
+    const shiftedMeta = { ...META, delivery_days: { first: "2026-03-01", last: "2026-03-31" } };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: RequestInfo | URL) => {
+        const url = new URL(String(input), "http://localhost");
+        if (url.pathname === "/api/v1/meta") {
+          return Promise.resolve(jsonResponse(shiftedMeta));
+        }
+        return Promise.resolve(jsonResponse(ACCURACY));
+      }),
+    );
+
+    renderView();
+
+    expect(
+      await screen.findByText(/headline metrics cover only the delivery days 1 Mar to 31 Mar 2026/),
+    ).toBeVisible();
+    expect(screen.queryByText(/2 Jan to 1 Feb 2026/)).not.toBeInTheDocument();
     await screen.findByRole("table", { name: "Alignment sensitivity" });
   });
 
@@ -167,12 +189,29 @@ describe("MethodologyView", () => {
 
     renderView();
 
-    expect(screen.getByText(/the P10 and P90/)).toBeVisible();
     expect(
-      screen.getByText(/14 delivery days that end two days before it \(D-15 to D-2\)/),
+      await screen.findByText(/14 delivery days that end two days before it \(D-15 to D-2\)/),
     ).toBeVisible();
+    expect(screen.getByText(/the P10 and P90/)).toBeVisible();
     expect(screen.getByText(/fewer than 7 days with errors/)).toBeVisible();
     expect(screen.getByText(/The target is about 80%/)).toBeVisible();
+    await screen.findByRole("table", { name: "Alignment sensitivity" });
+  });
+
+  it("takes the band lookback and minimum history from the accuracy response, not from fixed copy", async () => {
+    const accuracy = {
+      ...ACCURACY,
+      band_coverage: { ...ACCURACY.band_coverage, lookback_days: 10, min_history_days: 5 },
+    };
+    stubApi(() => jsonResponse(accuracy));
+
+    renderView();
+
+    expect(
+      await screen.findByText(/10 delivery days that end two days before it \(D-11 to D-2\)/),
+    ).toBeVisible();
+    expect(screen.getByText(/fewer than 5 days with errors/)).toBeVisible();
+    expect(screen.queryByText(/fewer than 7 days/)).not.toBeInTheDocument();
     await screen.findByRole("table", { name: "Alignment sensitivity" });
   });
 
@@ -246,6 +285,6 @@ describe("MethodologyView", () => {
     renderView();
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Data snapshot is not available");
-    expect(screen.getByText(/headline metrics cover only delivery days/)).toBeVisible();
+    expect(await screen.findByText(/headline metrics cover only the delivery days/)).toBeVisible();
   });
 });
