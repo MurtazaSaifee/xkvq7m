@@ -19,6 +19,11 @@ export function forecastSteps(hours: DecisionHour[]): Point[] {
   });
 }
 
+/** The hour a forecast step belongs to: forecastSteps gives each hour two consecutive steps. */
+export function hourOfStep(stepIndex: number): number {
+  return Math.floor(stepIndex / 2);
+}
+
 /** Half-hourly actual generation in time order. Missing half-hours stay null. */
 export function actualPoints(actuals: HalfHourActual[]): Point[] {
   return actuals.map((actual): Point => [Date.parse(actual.target_time), actual.generation_mw]);

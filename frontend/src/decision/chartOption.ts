@@ -4,9 +4,9 @@ import type {
   TooltipComponentFormatterCallbackParams as TopLevelFormatterParams,
 } from "echarts";
 
-import type { DecisionSnapshot } from "../api/client";
-import { formatMwh, formatUkTime } from "../format";
-import { actualPoints, bandAreas, forecastSteps, type Point } from "./series";
+import type { DecisionHour, DecisionSnapshot } from "../api/client";
+import { formatMw, formatMwRange, formatUkTime } from "../format";
+import { actualPoints, bandAreas, forecastSteps, hourOfStep, type Point } from "./series";
 
 export const CHART_COLORS = {
   forecast: "#2F6690",
@@ -16,25 +16,46 @@ export const CHART_COLORS = {
   muted: "#5B6372",
 } as const;
 
+const FORECAST_SERIES = "Decision forecast";
+
 const ukTimeOf = (epochMs: number) => formatUkTime(new Date(epochMs).toISOString());
 
 function describeValue(value: number | null | undefined): string {
-  return value === null || value === undefined ? "no value" : formatMwh(value);
+  return value === null || value === undefined ? "no value" : formatMw(value);
 }
 
-/** One line per series at the hovered time, in the same order as the legend. */
-function tooltip(params: TopLevelFormatterParams): string {
-  const items: CallbackDataParams[] = Array.isArray(params) ? params : [params];
-  const first = items[0];
-  if (!first) {
-    return "";
+/**
+ * The expected-error range of the hour the hovered forecast belongs to, if it has one. The item's
+ * data index is its forecast step, so the range is the one for the forecast value shown, even when
+ * the cursor sits on an hour edge.
+ */
+function bandRows(items: CallbackDataParams[], hours: DecisionHour[]): string[] {
+  const forecast = items.find((item) => item.seriesName === FORECAST_SERIES);
+  if (forecast === undefined) {
+    return [];
   }
-  const x = (first.value as Point)[0];
-  const rows = items.map((item) => {
-    const value = (item.value as Point)[1];
-    return `${item.marker ?? ""} ${item.seriesName}: ${describeValue(value)}`;
-  });
-  return [`<strong>${ukTimeOf(x)} UK</strong>`, ...rows].join("<br/>");
+  const hour = hours[hourOfStep(forecast.dataIndex)];
+  if (hour === undefined || hour.band_low_mw === null || hour.band_high_mw === null) {
+    return [];
+  }
+  return [`Expected range: ${formatMwRange(hour.band_low_mw, hour.band_high_mw)}`];
+}
+
+/** One line per series at the hovered time, in legend order, then the hour's expected range. */
+function tooltipFormatter(hours: DecisionHour[]) {
+  return (params: TopLevelFormatterParams): string => {
+    const items: CallbackDataParams[] = Array.isArray(params) ? params : [params];
+    const first = items[0];
+    if (!first) {
+      return "";
+    }
+    const x = (first.value as Point)[0];
+    const rows = items.map((item) => {
+      const value = (item.value as Point)[1];
+      return `${item.marker ?? ""} ${item.seriesName}: ${describeValue(value)}`;
+    });
+    return [`<strong>${ukTimeOf(x)} UK</strong>`, ...rows, ...bandRows(items, hours)].join("<br/>");
+  };
 }
 
 /**
@@ -48,7 +69,7 @@ export function buildChartOption(snapshot: DecisionSnapshot, reduceMotion: boole
     // at UTC+05:30 would see ticks at 02:30 and 06:30. The labels are UK time from ukTimeOf.
     useUTC: true,
     grid: { left: 64, right: 24, top: 24, bottom: 84 },
-    tooltip: { trigger: "axis", formatter: tooltip },
+    tooltip: { trigger: "axis", formatter: tooltipFormatter(snapshot.hours) },
     xAxis: {
       type: "time",
       axisLine: { lineStyle: { color: CHART_COLORS.rule } },
@@ -80,7 +101,7 @@ export function buildChartOption(snapshot: DecisionSnapshot, reduceMotion: boole
     ],
     series: [
       {
-        name: "Decision forecast",
+        name: FORECAST_SERIES,
         type: "line",
         data: forecastSteps(snapshot.hours),
         showSymbol: false,

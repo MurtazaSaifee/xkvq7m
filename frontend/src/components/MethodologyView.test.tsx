@@ -131,6 +131,16 @@ describe("MethodologyView", () => {
     await screen.findByRole("table", { name: "Alignment sensitivity" });
   });
 
+  it("points to the README for the table, without naming a developer command", async () => {
+    stubApi(() => jsonResponse(ACCURACY));
+
+    renderView();
+
+    await screen.findByRole("table", { name: "Alignment sensitivity" });
+    expect(screen.getByText(/The README quotes the same table/)).toBeVisible();
+    expect(screen.queryByText(/make sensitivity/)).not.toBeInTheDocument();
+  });
+
   it("takes the delivery days from the snapshot metadata, not from fixed copy", async () => {
     const shiftedMeta = { ...META, delivery_days: { first: "2026-03-01", last: "2026-03-31" } };
     vi.stubGlobal(
