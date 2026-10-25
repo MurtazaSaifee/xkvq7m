@@ -5,6 +5,7 @@ Coverage is returned as timezone-aware UTC. The decision methods use naive UTC, 
 the API adds the offset when it responds.
 """
 
+import tempfile
 from collections.abc import Generator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -49,7 +50,15 @@ class SnapshotRepository:
     def _connection(self) -> Generator[duckdb.DuckDBPyConnection]:
         if not self._path.is_file():
             raise SnapshotUnavailableError(f"no snapshot at {self._path}")
-        con = duckdb.connect(str(self._path), read_only=True)
+
+        # Vercel's bundle is read-only and only the temp dir is writable, so DuckDB must not spill
+        # or write its home-directory state beside the snapshot.
+        scratch = tempfile.gettempdir()
+        con = duckdb.connect(
+            str(self._path),
+            read_only=True,
+            config={"temp_directory": scratch, "home_directory": scratch},
+        )
         try:
             yield con
         except duckdb.CatalogException as error:
