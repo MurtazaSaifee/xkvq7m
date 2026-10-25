@@ -1,0 +1,16 @@
+# Keep the build context small and free of local-only material.
+.git
+.github
+.scratch
+docs
+**/node_modules
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.ruff_cache
+**/.pyright
+frontend/dist
+.env
+.env.*
+.DS_Store
