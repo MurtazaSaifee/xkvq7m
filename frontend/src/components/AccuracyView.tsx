@@ -2,6 +2,7 @@ import { useAccuracyQuery } from "../api/queries";
 import { useDecisionCutoff } from "../decision/DecisionCutoffContext";
 import { formatDayRange } from "../format";
 import { CutoffPicker } from "./CutoffPicker";
+import { BandCoveragePanel } from "./accuracy/BandCoveragePanel";
 import { ErrorHistogram } from "./accuracy/ErrorHistogram";
 import { HeadlineMetrics } from "./accuracy/HeadlineMetrics";
 
@@ -51,6 +52,8 @@ export function AccuracyView() {
       </div>
 
       <HeadlineMetrics summary={data.summary} deliveryDays={data.delivery_days} />
+
+      <BandCoveragePanel coverage={data.band_coverage} />
 
       <ErrorHistogram
         histogram={data.histogram}

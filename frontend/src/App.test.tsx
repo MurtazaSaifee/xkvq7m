@@ -23,6 +23,16 @@ const ACCURACY = {
     nmae_percent: 18.07,
   },
   histogram: { bin_width_mw: 500, bins: [] },
+  band_coverage: {
+    lookback_days: 14,
+    min_history_days: 7,
+    counted_hours: 744,
+    inside_hours: 597,
+    coverage_percent: 80.24,
+    excluded_no_band: 0,
+    excluded_no_decision_forecast: 0,
+    excluded_no_actual: 0,
+  },
 };
 
 const META = {
