@@ -7,7 +7,7 @@ import { DecisionCutoffProvider } from "./DecisionCutoffProvider";
 import { DecisionView } from "./DecisionView";
 
 // The chart needs a canvas, which jsdom does not provide. Its option is tested separately.
-vi.mock("./DecisionChart", () => ({ DecisionChart: () => null }));
+vi.mock("./EChart", () => ({ EChart: () => null }));
 
 const META = {
   ingested_at: "2026-10-25T04:45:25Z",

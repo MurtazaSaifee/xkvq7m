@@ -6,6 +6,9 @@ export type DecisionSnapshot = components["schemas"]["DecisionSnapshotResponse"]
 export type DecisionHour = components["schemas"]["HourResponse"];
 export type HalfHourActual = components["schemas"]["ActualResponse"];
 export type DayKpis = components["schemas"]["KpisResponse"];
+export type AccuracyResponse = components["schemas"]["AccuracyResponse"];
+export type AccuracySummary = components["schemas"]["AccuracySummaryResponse"];
+export type ErrorBin = components["schemas"]["ErrorBinResponse"];
 
 /** The problem document a route returns for an error (RFC 7807). */
 type ProblemBody = { title?: string; detail?: string };
@@ -38,6 +41,19 @@ export async function fetchDecisionSnapshot(
     throw new Error(await problemMessage(response, fallback));
   }
   return (await response.json()) as DecisionSnapshot;
+}
+
+export async function fetchAccuracy(cutoff: string, signal?: AbortSignal): Promise<AccuracyResponse> {
+  const params = new URLSearchParams({ cutoff });
+  const response = await fetch(`/api/v1/accuracy?${params.toString()}`, {
+    signal,
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) {
+    const fallback = `Accuracy request failed with HTTP ${response.status}`;
+    throw new Error(await problemMessage(response, fallback));
+  }
+  return (await response.json()) as AccuracyResponse;
 }
 
 export async function fetchHealth(signal?: AbortSignal): Promise<HealthResponse> {

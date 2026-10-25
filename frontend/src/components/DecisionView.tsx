@@ -5,14 +5,11 @@ import { buildChartOption, CHART_COLORS } from "../decision/chartOption";
 import { deliveryDaysBetween } from "../decision/days";
 import { useDecisionCutoff } from "../decision/DecisionCutoffContext";
 import { formatDay, outlookSentence } from "../format";
+import { prefersReducedMotion } from "../motion";
 import { CutoffPicker } from "./CutoffPicker";
-import { DecisionChart } from "./DecisionChart";
 import { DeliveryDayPicker } from "./DeliveryDayPicker";
+import { EChart } from "./EChart";
 import { KpiTiles } from "./KpiTiles";
-
-function prefersReducedMotion(): boolean {
-  return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
-}
 
 function Legend() {
   return (
@@ -126,7 +123,7 @@ export function DecisionView() {
 
       <div className="space-y-3">
         <Legend />
-        <DecisionChart
+        <EChart
           option={option}
           label={`Decision forecast against actual wind generation for ${formatDay(data.delivery_day)}`}
         />

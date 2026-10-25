@@ -55,10 +55,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/accuracy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Accuracy of decision forecasts over the scope, with an error histogram */
+        get: operations["accuracy_api_v1_accuracy_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AccuracyResponse */
+        AccuracyResponse: {
+            /** Cutoff */
+            cutoff: string;
+            delivery_days: components["schemas"]["DeliveryDayRangeResponse"];
+            summary: components["schemas"]["AccuracySummaryResponse"];
+            histogram: components["schemas"]["ErrorHistogramResponse"];
+        };
+        /**
+         * AccuracySummaryResponse
+         * @description Headline metrics over the measured hours, in MW unless stated. Metrics are null when no
+         *     hour can be measured. Excluded hours are counted by reason, so the three counts add up to
+         *     ``target_hours``.
+         */
+        AccuracySummaryResponse: {
+            /** Target Hours */
+            target_hours: number;
+            /** Measured Hours */
+            measured_hours: number;
+            /** Excluded No Decision Forecast */
+            excluded_no_decision_forecast: number;
+            /** Excluded No Actual */
+            excluded_no_actual: number;
+            /** Mae Mw */
+            mae_mw: number | null;
+            /** Bias Mw */
+            bias_mw: number | null;
+            /** Rmse Mw */
+            rmse_mw: number | null;
+            /** P90 Abs Error Mw */
+            p90_abs_error_mw: number | null;
+            /** Mean Actual Mw */
+            mean_actual_mw: number | null;
+            /** Nmae Percent */
+            nmae_percent: number | null;
+        };
         /** ActualResponse */
         ActualResponse: {
             /**
@@ -96,6 +149,19 @@ export interface components {
             actuals: components["schemas"]["ActualResponse"][];
             kpis: components["schemas"]["KpisResponse"];
         };
+        /** DeliveryDayRangeResponse */
+        DeliveryDayRangeResponse: {
+            /**
+             * First
+             * Format: date
+             */
+            first: string;
+            /**
+             * Last
+             * Format: date
+             */
+            last: string;
+        };
         /** DeliveryDaysResponse */
         DeliveryDaysResponse: {
             /**
@@ -108,6 +174,25 @@ export interface components {
              * Format: date
              */
             last: string;
+        };
+        /**
+         * ErrorBinResponse
+         * @description One bin: the lower edge is included and the upper edge excluded, except for the last bin.
+         */
+        ErrorBinResponse: {
+            /** Lower Mw */
+            lower_mw: number;
+            /** Upper Mw */
+            upper_mw: number;
+            /** Count */
+            count: number;
+        };
+        /** ErrorHistogramResponse */
+        ErrorHistogramResponse: {
+            /** Bin Width Mw */
+            bin_width_mw: number;
+            /** Bins */
+            bins: components["schemas"]["ErrorBinResponse"][];
         };
         /** HealthResponse */
         HealthResponse: {
@@ -246,6 +331,83 @@ export interface operations {
                 };
             };
             /** @description Invalid or out-of-range parameters */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /**
+                         * Type
+                         * @default about:blank
+                         */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance: string;
+                        /** Errors */
+                        errors?: {
+                            [key: string]: unknown;
+                        }[] | null;
+                    };
+                };
+            };
+            /** @description The data snapshot is not available */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /**
+                         * Type
+                         * @default about:blank
+                         */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance: string;
+                        /** Errors */
+                        errors?: {
+                            [key: string]: unknown;
+                        }[] | null;
+                    };
+                };
+            };
+        };
+    };
+    accuracy_api_v1_accuracy_get: {
+        parameters: {
+            query?: {
+                /** @description Decision cutoff as HH:MM UK time on each decision day (the day before). */
+                cutoff?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccuracyResponse"];
+                };
+            };
+            /** @description Invalid parameters */
             422: {
                 headers: {
                     [name: string]: unknown;

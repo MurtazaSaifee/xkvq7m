@@ -110,15 +110,30 @@ class SnapshotRepository:
         This is the decision-forecast rule as one ASOF join. Targets with no forecast published
         before the cutoff are left out of the result.
         """
+        return self.decision_forecasts_at([(target, cutoff_time) for target in target_times])
+
+    def decision_forecasts_at(
+        self, targets: Sequence[tuple[datetime, datetime]]
+    ) -> list[DecisionForecast]:
+        """As ``decision_forecasts``, but each target has its own cutoff.
+
+        ``targets`` holds (target time, cutoff time) pairs. Several delivery days share one query
+        this way, since each day's cutoff falls on its own decision day.
+        """
+        if not targets:
+            return []
         with self._connection() as con:
             rows = con.execute(
                 """
                 SELECT t.target_time, f.publish_time, f.generation_mw
-                FROM (SELECT unnest(?) AS target_time, ? AS cutoff_time) AS t
+                FROM (
+                    SELECT unnest(?::TIMESTAMP[]) AS target_time,
+                           unnest(?::TIMESTAMP[]) AS cutoff_time
+                ) AS t
                 ASOF LEFT JOIN forecasts AS f
                   ON f.target_time = t.target_time AND t.cutoff_time >= f.publish_time
                 """,
-                [list(target_times), cutoff_time],
+                [[target for target, _ in targets], [cutoff for _, cutoff in targets]],
             ).fetchall()
         return [
             DecisionForecast(

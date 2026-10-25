@@ -1,5 +1,6 @@
 import type { DayKpis } from "../api/client";
 import { formatMwh, formatSignedMwh } from "../format";
+import { Figure } from "./Figure";
 
 const EM_DASH = "—";
 
@@ -15,27 +16,6 @@ function errorCaption(error: number): string {
     return "Under-forecast: wind came in above the forecast";
   }
   return "No net error over the day";
-}
-
-function Figure({
-  label,
-  value,
-  caption,
-  tone = "ink",
-}: {
-  label: string;
-  value: string;
-  caption: string;
-  tone?: "ink" | "over" | "under";
-}) {
-  const toneClass = { ink: "text-ink", over: "text-over", under: "text-under" }[tone];
-  return (
-    <section role="group" aria-label={label} className="border-t border-rule pt-4">
-      <h2 className="text-sm text-muted">{label}</h2>
-      <p className={`mt-1 text-3xl font-medium tabular-nums ${toneClass}`}>{value}</p>
-      <p className="mt-1 text-sm text-muted">{caption}</p>
-    </section>
-  );
 }
 
 /** The day's totals over the hours that have both a decision forecast and an actual. */

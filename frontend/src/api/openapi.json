@@ -206,10 +206,284 @@
           }
         }
       }
+    },
+    "/api/v1/accuracy": {
+      "get": {
+        "tags": [
+          "accuracy"
+        ],
+        "summary": "Accuracy of decision forecasts over the scope, with an error histogram",
+        "operationId": "accuracy_api_v1_accuracy_get",
+        "parameters": [
+          {
+            "name": "cutoff",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+              "description": "Decision cutoff as HH:MM UK time on each decision day (the day before).",
+              "default": "09:20",
+              "title": "Cutoff"
+            },
+            "description": "Decision cutoff as HH:MM UK time on each decision day (the day before)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccuracyResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid parameters",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "The body of an error response. ``errors`` lists each invalid parameter, if any.",
+                  "properties": {
+                    "type": {
+                      "default": "about:blank",
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "title": "Instance",
+                      "type": "string"
+                    },
+                    "errors": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "additionalProperties": true,
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Errors"
+                    }
+                  },
+                  "required": [
+                    "title",
+                    "status",
+                    "detail",
+                    "instance"
+                  ],
+                  "title": "ProblemDetail",
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The data snapshot is not available",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "description": "The body of an error response. ``errors`` lists each invalid parameter, if any.",
+                  "properties": {
+                    "type": {
+                      "default": "about:blank",
+                      "title": "Type",
+                      "type": "string"
+                    },
+                    "title": {
+                      "title": "Title",
+                      "type": "string"
+                    },
+                    "status": {
+                      "title": "Status",
+                      "type": "integer"
+                    },
+                    "detail": {
+                      "title": "Detail",
+                      "type": "string"
+                    },
+                    "instance": {
+                      "title": "Instance",
+                      "type": "string"
+                    },
+                    "errors": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "additionalProperties": true,
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "title": "Errors"
+                    }
+                  },
+                  "required": [
+                    "title",
+                    "status",
+                    "detail",
+                    "instance"
+                  ],
+                  "title": "ProblemDetail",
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AccuracyResponse": {
+        "properties": {
+          "cutoff": {
+            "type": "string",
+            "title": "Cutoff"
+          },
+          "delivery_days": {
+            "$ref": "#/components/schemas/DeliveryDayRangeResponse"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/AccuracySummaryResponse"
+          },
+          "histogram": {
+            "$ref": "#/components/schemas/ErrorHistogramResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cutoff",
+          "delivery_days",
+          "summary",
+          "histogram"
+        ],
+        "title": "AccuracyResponse"
+      },
+      "AccuracySummaryResponse": {
+        "properties": {
+          "target_hours": {
+            "type": "integer",
+            "title": "Target Hours"
+          },
+          "measured_hours": {
+            "type": "integer",
+            "title": "Measured Hours"
+          },
+          "excluded_no_decision_forecast": {
+            "type": "integer",
+            "title": "Excluded No Decision Forecast"
+          },
+          "excluded_no_actual": {
+            "type": "integer",
+            "title": "Excluded No Actual"
+          },
+          "mae_mw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mae Mw"
+          },
+          "bias_mw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bias Mw"
+          },
+          "rmse_mw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rmse Mw"
+          },
+          "p90_abs_error_mw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P90 Abs Error Mw"
+          },
+          "mean_actual_mw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean Actual Mw"
+          },
+          "nmae_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nmae Percent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "target_hours",
+          "measured_hours",
+          "excluded_no_decision_forecast",
+          "excluded_no_actual",
+          "mae_mw",
+          "bias_mw",
+          "rmse_mw",
+          "p90_abs_error_mw",
+          "mean_actual_mw",
+          "nmae_percent"
+        ],
+        "title": "AccuracySummaryResponse",
+        "description": "Headline metrics over the measured hours, in MW unless stated. Metrics are null when no\nhour can be measured. Excluded hours are counted by reason, so the three counts add up to\n``target_hours``."
+      },
       "ActualResponse": {
         "properties": {
           "target_time": {
@@ -300,6 +574,26 @@
         ],
         "title": "DecisionSnapshotResponse"
       },
+      "DeliveryDayRangeResponse": {
+        "properties": {
+          "first": {
+            "type": "string",
+            "format": "date",
+            "title": "First"
+          },
+          "last": {
+            "type": "string",
+            "format": "date",
+            "title": "Last"
+          }
+        },
+        "type": "object",
+        "required": [
+          "first",
+          "last"
+        ],
+        "title": "DeliveryDayRangeResponse"
+      },
       "DeliveryDaysResponse": {
         "properties": {
           "first": {
@@ -319,6 +613,51 @@
           "last"
         ],
         "title": "DeliveryDaysResponse"
+      },
+      "ErrorBinResponse": {
+        "properties": {
+          "lower_mw": {
+            "type": "number",
+            "title": "Lower Mw"
+          },
+          "upper_mw": {
+            "type": "number",
+            "title": "Upper Mw"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lower_mw",
+          "upper_mw",
+          "count"
+        ],
+        "title": "ErrorBinResponse",
+        "description": "One bin: the lower edge is included and the upper edge excluded, except for the last bin."
+      },
+      "ErrorHistogramResponse": {
+        "properties": {
+          "bin_width_mw": {
+            "type": "integer",
+            "title": "Bin Width Mw"
+          },
+          "bins": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorBinResponse"
+            },
+            "type": "array",
+            "title": "Bins"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bin_width_mw",
+          "bins"
+        ],
+        "title": "ErrorHistogramResponse"
       },
       "HealthResponse": {
         "properties": {
