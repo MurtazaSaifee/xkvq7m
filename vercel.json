@@ -3,9 +3,8 @@
   "installCommand": "cd frontend && corepack pnpm install --frozen-lockfile",
   "buildCommand": "cd frontend && corepack pnpm build",
   "outputDirectory": "frontend/dist",
-  "rewrites": [{ "source": "/api/:path*", "destination": "/api/index" }],
   "functions": {
-    "api/index.py": {
+    "index.py": {
       "includeFiles": "{backend/app/**,data/snapshot.duckdb}",
       "excludeFiles": "{.env*,.vercel/**,.claude/**,.scratch/**,.github/**,docs/**,frontend/**,backend/tests/**,backend/.venv/**}"
     }

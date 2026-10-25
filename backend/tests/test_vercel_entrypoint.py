@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from app.core.config import REPO_ROOT, SNAPSHOT_PATH_ENV, snapshot_path
 from app.main import STATIC_DIR_ENV
 
-ENTRYPOINT = REPO_ROOT / "api" / "index.py"
+ENTRYPOINT = REPO_ROOT / "index.py"
 
 
 def _load_entrypoint() -> ModuleType:
